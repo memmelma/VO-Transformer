@@ -474,7 +474,9 @@ def generate_one_dataset(
                 # all previous information
                 prev_rgbs.append(prev_rgb.reshape(-1))
                 prev_depths.append(prev_depth.reshape(-1))
-                prev_point_goal_vecs.append(prev_obs["pointgoal_with_gps_compass"])
+                # obs keys changed from 2020 -> 2021
+                # prev_point_goal_vecs.append(prev_obs["pointgoal_with_gps_compass"])
+                prev_point_goal_vecs.append(prev_obs["pointgoal"])
                 prev_episodic_gpses.append(prev_obs["gps"])
                 prev_episodic_compasses.append(prev_obs["compass"])
                 prev_global_positions.append(prev_agent_state.position)
@@ -489,7 +491,9 @@ def generate_one_dataset(
                 # all current information
                 cur_rgbs.append(cur_rgb.reshape(-1))
                 cur_depths.append(cur_depth.reshape(-1))
-                cur_point_goal_vecs.append(cur_obs["pointgoal_with_gps_compass"])
+                # obs keys changed from 2020 -> 2021
+                # cur_point_goal_vecs.append(cur_obs["pointgoal_with_gps_compass"])
+                cur_point_goal_vecs.append(cur_obs["pointgoal"])
                 cur_episodic_gpses.append(cur_obs["gps"])
                 cur_episodic_compasses.append(cur_obs["compass"])
                 cur_global_positions.append(cur_agent_state.position)
