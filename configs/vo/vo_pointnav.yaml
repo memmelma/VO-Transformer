@@ -1,4 +1,5 @@
-BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
+# BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
+BASE_TASK_CONFIG_PATH: "configs/challenge_pointnav2021.local.rgbd.yaml"
 
 ENGINE_NAME: "vo_cnn_regression_geo_invariance_engine"
 
@@ -36,7 +37,7 @@ VO:
     weight_decay: 0.0 # we do not use weight decay in our experiments
     scheduler: "none"
     eps: 1.0e-8
-    batch_size: 128
+    batch_size: 192
     epochs: 150
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
@@ -64,12 +65,17 @@ VO:
     #  vo_cnn_act_embed, vo_cnn_wider_act_embed,
     #  vo_cnn_rgb_d_dd, vo_cnn_rgb_d_top_down, vo_cnn_rgb_dd_top_down, vo_cnn_d_dd_top_down,
     #  vo_cnn_rgb_d_dd_top_down]
-    name: "vo_cnn_rgb_d_dd_top_down"
-    visual_backbone: "resnet18"
+    # name: "vo_cnn_rgb_d_dd_top_down"
+    name: "vo_transformer" #"vo_transformer_act_embed"
+    # visual_backbone: "resnet18"
+    visual_backbone: "dpt_hybrid" # "dpt_large"
     hidden_size: 512
-    visual_type: ["rgb", "depth", "discretized_depth", "top_down_view"]  # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    discretize_depth: "hard"  # choices: ['none', 'hard']
-    discretized_depth_channels: 10
+    # visual_type: ["rgb", "depth", "discretized_depth", "top_down_view"]  # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
+    visual_type: ["rgb"]
+    # discretize_depth: "hard"  # choices: ['none', 'hard']
+    discretize_depth: "none"
+    # discretized_depth_channels: 10
+    discretized_depth_channels: 0
 
     top_down_center_crop: True
 
@@ -88,11 +94,13 @@ VO:
   
   GEOMETRY:
     loss_inv_weight: 1
-    invariance_types: ["inverse_data_augment_only"]  # choices: ["inverse_data_augment_only", "inverse_joint_train"]
+    invariance_types: [] # ["inverse_data_augment_only"]  # choices: ["inverse_data_augment_only", "inverse_joint_train"]
 
   DATASET:
-    TRAIN_WITH_NOISE: dataset/vo_dataset/train_1000000.h5
-    EVAL_WITH_NOISE: dataset/vo_dataset/val_50000.h5
+    # TRAIN_WITH_NOISE: dataset/vo_dataset/train_1000000.h5
+    # EVAL_WITH_NOISE: dataset/vo_dataset/val_50000.h5
+    TRAIN_WITH_NOISE: dataset/vo_dataset/train_100.h5
+    EVAL_WITH_NOISE: dataset/vo_dataset/val_500.h5
 
     # use only 1 / PARTIAL_DATA_N_SPLITS data to train
     # so PARTIAL_DATA_N_SPLITS = 1 means we use all data
