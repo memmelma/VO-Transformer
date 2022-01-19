@@ -106,4 +106,18 @@ class DPTDepthModel(DPT):
            self.load(path)
 
     def forward(self, x):
+        assert x.shape[-1] == 384 and  x.shape[-2] == 384, f'DPT only able to reconstruct 384x384 images. Got {x.shape}!'
         return super().forward(x).squeeze(dim=1)
+
+    def forward_enc(self, x):
+        if self.channels_last == True:
+            x.contiguous(memory_format=torch.channels_last)
+
+        layer_1, layer_2, layer_3, layer_4 = forward_vit(self.pretrained, x)
+
+        layer_1_rn = self.scratch.layer1_rn(layer_1)
+        layer_2_rn = self.scratch.layer2_rn(layer_2)
+        layer_3_rn = self.scratch.layer3_rn(layer_3)
+        layer_4_rn = self.scratch.layer4_rn(layer_4)
+
+        return layer_1_rn, layer_2_rn, layer_3_rn, layer_4_rn 
