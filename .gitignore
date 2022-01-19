@@ -129,3 +129,19 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# data
+dataset/
+
+# wandb
+wandb/
+
+# habitat
+habitat-sim/
+habitat-lab/
+
+# logs
+train_log/
+
+# pretrained models
+pretrained_ckpts/
