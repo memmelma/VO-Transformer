@@ -85,7 +85,7 @@ class TensorboardWriter:
         self, descriptor: str, img: Any, global_step: int, dataformats=None, *args: Any, **kwargs: Any
     ) -> None:
         if self.use_wandb:
-            img = wandb.Image(img, caption="")
+            img = wandb.Image(img.permute(2,0,1), caption="")
             wandb.log({descriptor: img}, step=int(global_step))
         else:
             self.writer.add_image(descriptor, value, global_step)
