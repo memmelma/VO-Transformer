@@ -48,7 +48,7 @@ class VOCNNRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
         return self.config.VO.GEOMETRY.invariance_types
 
     def _set_up_model(self):
-
+        
         vo_model_cls = baseline_registry.get_vo_model(self.config.VO.MODEL.name)
         assert vo_model_cls is not None, f"{self.config.VO.MODEL.name} is not supported"
 
@@ -824,7 +824,7 @@ class VOCNNRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
         grad_info_dict = OrderedDict()
 
         with (
-            TensorboardWriter(self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs)
+            TensorboardWriter(self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs, config=self.config)
         ) as writer:
 
             for epoch in tqdm(range(start_epoch, self.config.VO.TRAIN.epochs)):
@@ -850,7 +850,9 @@ class VOCNNRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                             pbar.total = nbatches
                             pbar.refresh()
 
-                        global_step = batch_i + epoch * nbatches
+                        # avoid wandb issue where epoch < global_step
+                        # global_step = batch_i + epoch * nbatches
+                        global_step = epoch
 
                         for act in self._act_list:
                             self.optimizer[act].zero_grad()
