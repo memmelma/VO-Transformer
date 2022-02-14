@@ -50,6 +50,7 @@ class StatePairRegressionDataset(BaseRegressionDataset):
         top_down_view_infos={},
         geo_invariance_types=[],
         partial_data_n_splits=1,
+        **kwargs,
         # data_aug=False,
     ):
         f"""Valid combination of action and geometric consistency types are:
@@ -136,7 +137,7 @@ class StatePairRegressionDataset(BaseRegressionDataset):
                 valid_idxes, transform_idxes = self._get_valid_idxes(f, chunk_k)
                 self._len += len(valid_idxes)
 
-        logger.info("... done.\n")
+        logger.info(f"... done. lenght {self._len}\n")
 
         if not self._eval:
             random.shuffle(all_chunk_keys)
@@ -149,6 +150,8 @@ class StatePairRegressionDataset(BaseRegressionDataset):
                 self._chunk_splits[i % num_workers].append(chunk_k)
         else:
             raise ValueError
+
+        self.distributed = False
 
     @property
     def data_f(self):
@@ -351,7 +354,13 @@ class StatePairRegressionDataset(BaseRegressionDataset):
             and ("inverse_joint_train" in self._geo_invariance_types)
         )
 
-        if flag1 or flag2:
+        # for _act_type == -1
+        flag3 = (
+            (self._actions[i] != MOVE_FORWARD)
+            and ("inverse_joint_train" in self._geo_invariance_types)
+        )
+
+        if flag1 or flag2 or flag3:
             # get the opposite action from self._actions[i],
             # namely, if self._actions[i] is TURN_LEFT, add TURN_RIGHT
             tmp_act_list = [TURN_LEFT, TURN_RIGHT]
@@ -451,7 +460,22 @@ class StatePairRegressionDataset(BaseRegressionDataset):
             entry_idxs,
         )
 
+    def set_distributed(self, rank, world_size):
+        self.rank = rank
+        self.world_size = world_size
+        self.distributed = True
+        self._len = len(self._chunk_splits)
+
+        self._rank_chunk_splits = len(self) // self.world_size
+        # limit chunks for distributed processes
+        # self._chunk_splits = self._chunk_splits[self._rank_chunk_splits*self.rank:self._rank_chunk_splits*(self.rank+1)]
+        valid_key_list = list(self._chunk_splits)[self._rank_chunk_splits*self.rank:self._rank_chunk_splits*(self.rank+1)]
+        for key in list(self._chunk_splits.keys()):
+            if key not in valid_key_list:
+                self._chunk_splits.pop(key)
+
     def __iter__(self):
+    
         try:
             worker_info = torch.utils.data.get_worker_info()
         except:
@@ -481,7 +505,7 @@ class StatePairRegressionDataset(BaseRegressionDataset):
                 # rdcc_nbytes=self._chunk_bytes,
                 rdcc_nslots=1e7,
             ) as f:
-
+                
                 # get valid indexes
                 valid_idxes, _ = self._get_valid_idxes(f, chunk_k)
 
