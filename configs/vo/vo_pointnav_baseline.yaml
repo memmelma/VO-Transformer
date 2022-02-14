@@ -71,7 +71,7 @@ VO:
     #  vo_cnn_rgb_d_dd_top_down]
     # name: "vo_cnn_rgb_d_dd_top_down"
     name: "vo_cnn_rgb_d_dd_top_down" #"vo_transformer_act_embed"
-    visual_backbone: "resnet18"
+    visual_backbone: "resnet50" # resnet18, resnet50, resnet101, resneXt50, se_resnet50, se_resneXt50, se_resneXt101
     cls_action: False
     # visual_backbone: "base" # 'small', 'base', 'large', 'hybrid'
     train_backbone: True # True: also train the ViT encoder, False: freeze

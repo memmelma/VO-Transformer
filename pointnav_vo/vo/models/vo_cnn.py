@@ -546,7 +546,7 @@ class VisualOdometryCNNDiscretizedDepthTopDownView(VisualOdometryCNNBase):
         **kwargs,
     ):
 
-        assert backbone == "resnet18"
+        # assert backbone == "resnet18"
         assert "discretized_depth" in observation_space
         assert "top_down_view" in observation_space
 
