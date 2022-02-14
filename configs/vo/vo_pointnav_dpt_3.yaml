@@ -11,10 +11,12 @@ CHECKPOINT_FOLDER: "{{LOG_DIR}}/checkpoints"
 TENSORBOARD_DIR: "{{LOG_DIR}}/tb"
 VIDEO_OPTION: []
 VIDEO_DIR: "{{LOG_DIR}}/videos"
-LOG_INTERVAL: 10
+LOG_INTERVAL: 1
 
 RESUME_TRAIN: False
 RESUME_STATE_FILE: "resume_train_ckpt.pth"   # path to the checkpoint you want to resume training from
+
+DEBUG: False
 
 # evaluation settings
 EVAL:
@@ -26,7 +28,7 @@ VO:
 
   VO_TYPE: "REGRESS"
 
-  VIS_SIZE_W: 341
+  VIS_SIZE_W: 384
   VIS_SIZE_H: 192
 
   TRAIN:
@@ -37,7 +39,7 @@ VO:
     weight_decay: 0.0 # we do not use weight decay in our experiments
     scheduler: "none"
     eps: 1.0e-8
-    batch_size: 512
+    batch_size: 32 # w/o training backbone 2048
     epochs: 150
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
@@ -57,7 +59,7 @@ VO:
     save_pred: True
     rank_pred: False
     rank_top_k: 20
-    eval_acts: ["no_specify"]  # choices: ["no_specify", "forward", "left", "right"]
+    eval_acts: ["right"]  # choices: ["no_specify", "forward", "left", "right"]
   
   MODEL:
     # choices:
@@ -66,9 +68,11 @@ VO:
     #  vo_cnn_rgb_d_dd, vo_cnn_rgb_d_top_down, vo_cnn_rgb_dd_top_down, vo_cnn_d_dd_top_down,
     #  vo_cnn_rgb_d_dd_top_down]
     # name: "vo_cnn_rgb_d_dd_top_down"
-    name: "vo_transformer" #"vo_transformer_act_embed"
+    name: "vo_transformer_act_embed" #"vo_transformer_act_embed"
     # visual_backbone: "resnet18"
     visual_backbone: "dpt_hybrid" # "dpt_large"
+    train_visual_backbone: True # True: also train the DPT/ViT encoder, False: freeze
+    pretrain_visual_backbone: False # True: pretrain with Omnidata depth, False: pretrain with ViT + ResNet18 models
     hidden_size: 512
     # visual_type: ["rgb", "depth", "discretized_depth", "top_down_view"]  # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
     visual_type: ["rgb"]
@@ -97,10 +101,8 @@ VO:
     invariance_types: ["inverse_data_augment_only"] # ["inverse_data_augment_only"]  # choices: ["inverse_data_augment_only", "inverse_joint_train"]
 
   DATASET:
-    TRAIN_WITH_NOISE: dataset/vo_dataset/train_1000000.h5
-    # TRAIN_WITH_NOISE: dataset/vo_dataset/train_100.h5
-    EVAL_WITH_NOISE: dataset/vo_dataset/val_50000.h5
-    # EVAL_WITH_NOISE: dataset/vo_dataset/val_500.h5
+    TRAIN_WITH_NOISE: dataset/vo_dataset/train_50000_32.h5
+    EVAL_WITH_NOISE: dataset/vo_dataset/val_10000_32.h5
 
     # use only 1 / PARTIAL_DATA_N_SPLITS data to train
     # so PARTIAL_DATA_N_SPLITS = 1 means we use all data

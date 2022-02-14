@@ -68,18 +68,18 @@ VO:
     #  vo_cnn_rgb_d_dd, vo_cnn_rgb_d_top_down, vo_cnn_rgb_dd_top_down, vo_cnn_d_dd_top_down,
     #  vo_cnn_rgb_d_dd_top_down]
     # name: "vo_cnn_rgb_d_dd_top_down"
-    name: "vo_transformer_act_embed" #"vo_transformer_act_embed"
+    name: "vo_cnn_rgb_d_dd_top_down" #"vo_transformer_act_embed"
     # visual_backbone: "resnet18"
-    visual_backbone: "dpt_hybrid" # "dpt_large"
-    train_visual_backbone: True # True: also train the DPT/ViT encoder, False: freeze
+    visual_backbone: "resnet18" # "dpt_large"
+    train_visual_backbone: False # True: also train the DPT/ViT encoder, False: freeze
     pretrain_visual_backbone: False # True: pretrain with Omnidata depth, False: pretrain with ViT + ResNet18 models
     hidden_size: 512
     # visual_type: ["rgb", "depth", "discretized_depth", "top_down_view"]  # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    visual_type: ["rgb"]
+    visual_type: ["rgb", "depth", "discretized_depth", "top_down_view"]
     # discretize_depth: "hard"  # choices: ['none', 'hard']
-    discretize_depth: "none"
+    discretize_depth: "hard"
     # discretized_depth_channels: 10
-    discretized_depth_channels: 0
+    discretized_depth_channels: 10
 
     top_down_center_crop: False
 
