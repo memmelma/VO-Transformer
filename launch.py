@@ -64,6 +64,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--port", type=str, required=True, help="master port",
     )
+    parser.add_argument(
+        "--config-yaml", type=str, required=True, help="path to config yaml", default='configs/vo/vo_pointnav.yaml'
+    )
 
     args = parser.parse_args()
 
@@ -72,7 +75,7 @@ if __name__ == "__main__":
     if args.task_type == "rl":
         cur_config_f = os.path.join(args.repo_path, "configs/rl/ddppo_pointnav.yaml")
     elif args.task_type == "vo":
-        cur_config_f = os.path.join(args.repo_path, "configs/vo/vo_pointnav.yaml")
+        cur_config_f = os.path.join(args.repo_path, args.config_yaml)
     else:
         pass
 

@@ -528,7 +528,7 @@ def generate_datasets(
 ):
 
     for name, N in N_dict.items():
-        save_f = os.path.join(save_dir, f"{name}_{N_dict[name]}.h5")
+        save_f = os.path.join(save_dir, f"{name}_{N_dict[name]}{(f'_{act_type}') if act_type != -1 else ''}.h5")
         if name == "train":
             scene_list = train_scene_list
         elif name == "val":
@@ -538,6 +538,14 @@ def generate_datasets(
 
         if act_type == -1:
             valid_act = [MOVE_FORWARD, TURN_LEFT, TURN_RIGHT]
+        elif act_type == 1:
+            valid_act = [MOVE_FORWARD]
+        elif act_type == 2:
+            valid_act = [TURN_LEFT]
+        elif act_type == 3:
+            valid_act = [TURN_RIGHT]
+        elif act_type == 23:
+            valid_act = [TURN_LEFT, TURN_RIGHT]
         else:
             valid_act = [act_type]
 

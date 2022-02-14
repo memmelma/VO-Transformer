@@ -11,10 +11,8 @@ python ${POINTNAV_VO_ROOT}/pointnav_vo/vo/dataset/generate_datasets.py \
 --val_scene_dir ./dataset/habitat_datasets/pointnav/gibson/v2/val/content \
 --save_dir ./dataset/vo_dataset \
 --data_version v2 \
---vis_size_w 341 \
+--vis_size_w 384 \
 --vis_size_h 192 \
 --obs_transform none \
---act_type -1 \
 --rnd_p 1.0 \
---N_list 50000 \
---name_list val
+$@

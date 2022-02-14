@@ -16,11 +16,19 @@ from pointnav_vo.vo.models.vo_cnn_act_embed import (
 )
 
 from pointnav_vo.vo.models.vo_transformer import (
+    VisualOdometryTransformerActEmbed
+)
+
+from pointnav_vo.vo.models.vo_transformer_dpt import (
     VisualOdometryTransformerRGB,
     VisualOdometryTransformerActEmbedRGB
 )
 
 from pointnav_vo.vo.engine.vo_cnn_engine import VOCNNBaseEngine
+
 from pointnav_vo.vo.engine.vo_cnn_regression_geo_invariance_engine import (
     VOCNNRegressionGeometricInvarianceEngine,
+)
+from pointnav_vo.vo.engine.vo_transformer_regression_geo_invariance_engine import(
+    VOTransformerRegressionGeometricInvarianceEngine
 )

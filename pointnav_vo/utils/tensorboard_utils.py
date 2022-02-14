@@ -13,7 +13,7 @@ from torch.utils.tensorboard import SummaryWriter
 
 
 class TensorboardWriter:
-    def __init__(self, log_dir: str, config: Any, use_wandb=True, *args: Any, **kwargs: Any):
+    def __init__(self, log_dir: str, config: Any, rank=0, *args: Any, **kwargs: Any):
         r"""A Wrapper for tensorboard SummaryWriter. It creates a dummy writer
         when log_dir is empty string or None. It also has functionality that
         generates tb video directly from numpy images.
@@ -25,11 +25,11 @@ class TensorboardWriter:
             **kwargs: Additional keyword args for SummaryWriter
         """
         
-        self.use_wandb = use_wandb
+        self.use_wandb = not config.DEBUG and rank == 0
         if self.use_wandb:
             os.system("wandb login --relogin $WANDB_API_KEY")
-            self.run = wandb.init(project="vo", entity="memmelma", mode="disabled" if config.TASK_CONFIG.DATASET.SPLIT != 'train' else None, reinit=True)
-            wandb.config = vars(config)
+            self.run = wandb.init(project="vo", entity="memmelma", config=vars(),
+                                    mode="disabled" if config.TASK_CONFIG.DATASET.SPLIT != 'train' else None, reinit=True)
         else:
             self.writer = None
             if log_dir is not None and len(log_dir) > 0:
@@ -85,10 +85,12 @@ class TensorboardWriter:
         self, descriptor: str, img: Any, global_step: int, dataformats=None, *args: Any, **kwargs: Any
     ) -> None:
         if self.use_wandb:
-            img = wandb.Image(img, caption="")
-            wandb.log({descriptor: img}, step=int(global_step))
+            if len(img.shape) < 3:
+                img = img.unsqueeze(-1)
+                img = wandb.Image(img.permute(2,0,1), caption="")
+                wandb.log({descriptor: img}, step=int(global_step))
         else:
-            self.writer.add_image(descriptor, value, global_step)
+            self.writer.add_image(descriptor, img.permute(2,0,1), global_step)
 
     def add_scalar(
         self, descriptor: str, value: Any, global_step: int, *args: Any, **kwargs: Any

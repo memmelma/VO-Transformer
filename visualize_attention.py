@@ -43,7 +43,6 @@ def apply_mask(image, mask, color, alpha=0.5):
         image[:, :, c] = image[:, :, c] * (1 - alpha * mask) + alpha * mask * color[c] * 255
     return image
 
-
 def random_colors(N, bright=True):
     """
     Generate random colors.
@@ -53,7 +52,6 @@ def random_colors(N, bright=True):
     colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
     random.shuffle(colors)
     return colors
-
 
 def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, contour=True, alpha=0.5):
     fig = plt.figure(figsize=figsize, frameon=False)
