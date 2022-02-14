@@ -30,6 +30,7 @@ class VisualOdometryCNNActEmbed(nn.Module):
         discretized_depth_channels=0,
         after_compression_flat_size=2048,
         n_acts=N_ACTS,
+        **kwargs,
     ):
         super().__init__()
 
@@ -90,6 +91,7 @@ class VisualOdometryCNNWiderActEmbed(VisualOdometryCNNActEmbed):
         dropout_p=0.2,
         n_acts=N_ACTS,
         discretized_depth_channels=0,
+        **kwargs,
     ):
         assert backbone == "resnet18"
         assert discretized_depth_channels == 0

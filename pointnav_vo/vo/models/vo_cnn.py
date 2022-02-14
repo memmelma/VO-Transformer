@@ -30,6 +30,7 @@ class ResNetEncoder(nn.Module):
         depth_pair_channel=DEPTH_PAIR_CHANNEL,
         discretized_depth_channels=0,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
         super().__init__()
 
@@ -196,6 +197,7 @@ class VisualOdometryCNNBase(nn.Module):
         depth_pair_channel=DEPTH_PAIR_CHANNEL,
         discretized_depth_channels=0,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
         super().__init__()
 
@@ -248,6 +250,7 @@ class VisualOdometryCNN(VisualOdometryCNNBase):
         dropout_p=0.2,
         discretized_depth_channels=0,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
         assert backbone == "resnet18"
         assert discretized_depth_channels == 0
@@ -281,6 +284,7 @@ class VisualOdometryCNNRGB(VisualOdometryCNNBase):
         dropout_p=0.2,
         discretized_depth_channels=0,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
         assert backbone == "resnet18"
         assert discretized_depth_channels == 0
@@ -315,6 +319,7 @@ class VisualOdometryCNNWider(VisualOdometryCNNBase):
         dropout_p=0.2,
         discretized_depth_channels=0,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
         assert backbone == "resnet18"
         assert discretized_depth_channels == 0
@@ -351,6 +356,7 @@ class VisualOdometryCNNDeeper(VisualOdometryCNNBase):
         dropout_p=0.2,
         discretized_depth_channels=0,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
 
         assert backbone == "resnet101"
@@ -385,6 +391,7 @@ class VisualOdometryCNNDiscretizedDepth(VisualOdometryCNNBase):
         dropout_p=0.2,
         discretized_depth_channels=10,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
 
         assert backbone == "resnet18"
@@ -420,6 +427,7 @@ class VisualOdometryCNN_RGB_D_TopDownView(VisualOdometryCNNBase):
         dropout_p=0.2,
         discretized_depth_channels=10,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
 
         assert backbone == "resnet18"
@@ -457,6 +465,7 @@ class VisualOdometryCNN_RGB_DD_TopDownView(VisualOdometryCNNBase):
         dropout_p=0.2,
         discretized_depth_channels=10,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
 
         assert backbone == "resnet18"
@@ -495,6 +504,7 @@ class VisualOdometryCNN_D_DD_TopDownView(VisualOdometryCNNBase):
         dropout_p=0.2,
         discretized_depth_channels=10,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
 
         assert backbone == "resnet18"
@@ -533,6 +543,7 @@ class VisualOdometryCNNDiscretizedDepthTopDownView(VisualOdometryCNNBase):
         dropout_p=0.2,
         discretized_depth_channels=10,
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
+        **kwargs,
     ):
 
         assert backbone == "resnet18"
