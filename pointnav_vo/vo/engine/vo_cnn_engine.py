@@ -18,7 +18,7 @@ from pointnav_vo.utils.baseline_registry import baseline_registry
 from pointnav_vo.vo.common.common_vars import *
 
 
-@baseline_registry.register_vo_engine(name="vo_cnn_base_enginer")
+@baseline_registry.register_vo_engine(name="vo_cnn_base_engine")
 class VOCNNBaseEngine:
     def __init__(
         self, config: Config = None, run_type: str = "train", verbose: bool = True
@@ -26,7 +26,7 @@ class VOCNNBaseEngine:
 
         self._run_type = run_type
 
-        self._pin_memory_flag = False
+        self._pin_memory_flag = False # True
 
         if torch.cuda.is_available():
             self.device = torch.device("cuda", 0)
