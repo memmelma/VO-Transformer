@@ -145,3 +145,9 @@ train_log/
 
 # pretrained models
 pretrained_ckpts/
+
+login_git.sh
+pretrained_models/
+
+imgs_attention_heads/
+imgs_test/
