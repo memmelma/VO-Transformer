@@ -33,7 +33,7 @@ from pointnav_vo.vo.dataset.regression_geo_invariance_iter_dataset import (
 )
 from pointnav_vo.vo.common.common_vars import *
 
-TRAIN_NUM_WORKERS = 2 # multiprocessing.cpu_count() // 2 # 20
+TRAIN_NUM_WORKERS =  multiprocessing.cpu_count() // 2 # 20
 EVAL_NUM_WORKERS = 10
 PREFETCH_FACTOR = 2
 TIMEOUT = 10 * 60 # 5 * 60
@@ -145,7 +145,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             self.train_distributed(rank=0, world_size=1)
 
     def train_distributed(self, rank, world_size):
-        print('spawned rank', rank)
+
         self.setup(rank, world_size)
 
         trainer_init = baseline_registry.get_vo_engine(self.engine_name)
@@ -202,9 +202,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                     while True:
 
                         try:
-                            print('load')
                             batch_data = next(train_iter)
-                            print('loaded')
                         # NOTE RuntimeError: DataLoader timed out after 300 seconds
                         except RuntimeError  as re:
                             print(re)

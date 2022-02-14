@@ -470,6 +470,9 @@ class StatePairRegressionDataset(BaseRegressionDataset):
         # limit chunks for distributed processes
         # self._chunk_splits = self._chunk_splits[self._rank_chunk_splits*self.rank:self._rank_chunk_splits*(self.rank+1)]
         valid_key_list = list(self._chunk_splits)[self._rank_chunk_splits*self.rank:self._rank_chunk_splits*(self.rank+1)]
+        
+        assert valid_key_list, 'valid_key_list empty. Consider increasing number of workers'
+
         for key in list(self._chunk_splits.keys()):
             if key not in valid_key_list:
                 self._chunk_splits.pop(key)
