@@ -1,5 +1,3 @@
-# Code adapted from https://github.com/facebookresearch/dino/blob/main/visualize_attention.py
-
 # Copyright (c) Facebook, Inc. and its affiliates.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -39,9 +37,6 @@ from PIL import Image
 import timm
 import types
 from matplotlib import cm
-
-from pointnav_vo.vo.common.common_vars import *
-from pointnav_vo.vo import VisualOdometryTransformerActEmbed
 
 def apply_mask(image, mask, color, alpha=0.5):
     for c in range(3):
@@ -100,110 +95,73 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
     print(f"{fname} saved.")
     return
 
-def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='', omnidata_model_path='', cls_action=False, device='cpu'):
 
-    supported_pretraining = dict({
-        'small': ['in21k', 'dino'],
-        'base': ['in21k', 'dino'],
-        'hybrid': ['in21k', 'omnidata'],
-        'large': ['in21k', 'omnidata']
-    })
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser('Visualize Self-Attention maps')
+    parser.add_argument('--arch', default='vit_small', type=str,
+        choices=['vit_tiny', 'vit_small', 'vit_base'], help='Architecture (support only ViT atm).')
+    parser.add_argument('--patch_size', default=16, type=int, help='Patch resolution of the model.')
+    parser.add_argument('--pretrained_weights', default='', type=str,
+        help="Path to pretrained weights to load.")
+    parser.add_argument("--checkpoint_key", default="teacher", type=str,
+        help='Key to use in the checkpoint (example: "teacher")')
+    parser.add_argument("--image_path", default=None, type=str, help="Path of the image to load.")
+    parser.add_argument("--image_size", default=(384, 384), type=int, nargs="+", help="Resize image.")
+    parser.add_argument('--output_dir', default='.', help='Path where to save visualizations.')
+    parser.add_argument("--threshold", type=float, default=None, help="""We visualize masks
+        obtained by thresholding the self-attention maps to keep xx% of the mass.""")
+    parser.add_argument('--matplotlib-colors', default=False, type=bool,
+        help="Visualize self-attention maps with matplotlib color scheme. This takes quite some time!")
+    args = parser.parse_args()
 
-    vit = None
-
-    assert pretrain_backbone in supported_pretraining[backbone] or pretrain_backbone == 'None', \
-    f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {supported_pretraining[backbone]}.'
-
-    if pretrained_weights != '':
-        assert os.path.exists(pretrained_weights), f'Path {pretrained_weights} does not exist!'
+    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     
-        model = VisualOdometryTransformerActEmbed(
-                backbone=backbone,
-                cls_action = cls_action,
-                train_backbone=False,
-                pretrain_backbone=pretrain_backbone,
-                omnidata_model_path=omnidata_model_path,
-                normalize_visual_inputs=True,
-                hidden_size=512,
-                output_dim=len(DEFAULT_DELTA_TYPES),
-                dropout_p=0.2,
-                n_acts=N_ACTS,
-            )
-        checkpoint = torch.load(pretrained_weights, map_location=device)
-        def convert_dataparallel_weights(weights):
-            converted_weights = {}
-            keys = weights.keys()
-            for key in keys:
-                new_key = key.split("module.")[-1]
-                converted_weights[new_key] = weights[key]
-            return converted_weights
-        model_state = convert_dataparallel_weights(checkpoint['model_states'][-1])
-
-        model.load_state_dict(model_state, strict=True)
-        vit = model.vit
-
-        print(f'Loaded pretrained weights backbone:{backbone} pretrain_backbone:{pretrain_backbone}!')
     
-    elif pretrain_backbone == 'in21k':
-        model_string = dict({
-            'small': 'vit_small_patch16_384',
-            'base': 'vit_base_patch16_384',
-            'hybrid': 'vit_base_r50_s16_384',
-            'large': 'vit_large_patch16_384'
-        })
-        vit = timm.create_model(model_string[backbone], pretrained=True)
-        vit = prepare_timm_model(vit)
+    
+    # TODO load our DINO
+    # TODO load from our model files
+    # TODO add our terminology
 
-        print(f'Loaded backbone:{backbone} pretrain_backbone:{pretrain_backbone}!')
+    # # build model
+    # model = vits.__dict__[args.arch](patch_size=args.patch_size, num_classes=0)
+    # for p in model.parameters():
+    #     p.requires_grad = False
+    # model.eval()
+    # model.to(device)
 
-    elif pretrain_backbone == 'dino':
-        model_string = dict({
-            'small': 'dino_vits16',
-            'base': 'dino_vitb16'
-        })
-        vit = torch.hub.load('facebookresearch/dino:main', model_string[backbone])
+    # if os.path.isfile(args.pretrained_weights):
+    #     state_dict = torch.load(args.pretrained_weights, map_location="cpu")
+    #     if args.checkpoint_key is not None and args.checkpoint_key in state_dict:
+    #         print(f"Take key {args.checkpoint_key} in provided checkpoint dict")
+    #         state_dict = state_dict[args.checkpoint_key]
+    #     # remove `module.` prefix
+    #     state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+    #     # remove `backbone.` prefix induced by multicrop wrapper
+    #     state_dict = {k.replace("backbone.", ""): v for k, v in state_dict.items()}
+    #     msg = model.load_state_dict(state_dict, strict=False)
+    #     print('Pretrained weights found at {} and loaded with msg: {}'.format(args.pretrained_weights, msg))
+    # else:
+    #     print("Please use the `--pretrained_weights` argument to indicate the path of the checkpoint to evaluate.")
+    #     url = None
+    #     if args.arch == "vit_small" and args.patch_size == 16:
+    #         url = "dino_deitsmall16_pretrain/dino_deitsmall16_pretrain.pth"
+    #     elif args.arch == "vit_small" and args.patch_size == 8:
+    #         url = "dino_deitsmall8_300ep_pretrain/dino_deitsmall8_300ep_pretrain.pth"  # model used for visualizations in our paper
+    #     elif args.arch == "vit_base" and args.patch_size == 16:
+    #         url = "dino_vitbase16_pretrain/dino_vitbase16_pretrain.pth"
+    #     elif args.arch == "vit_base" and args.patch_size == 8:
+    #         url = "dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
+    #     if url is not None:
+    #         print("Since no pretrained weights have been provided, we load the reference pretrained DINO weights.")
+    #         state_dict = torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/" + url)
+    #         model.load_state_dict(state_dict, strict=True)
+    #     else:
+    #         print("There is no reference weights available for this model => We use random weights.")
 
-        print(f'Loaded backbone:{backbone} pretrain_backbone:{pretrain_backbone}!')
+    # load timm VisionTransformer
+    model = timm.create_model("vit_small_patch16_384", pretrained=True)
 
-    elif pretrain_backbone == 'omnidata':
-        
-        assert os.path.exists(omnidata_model_path), f'Path {omnidata_model_path} does not exist!'
-
-        model_string = dict({
-            'hybrid': 'vitb_rn50_384',
-            'large': 'vitl16_384'
-        })
-
-        model_path = dict({
-            'hybrid': 'omnidata_rgb2depth_dpt_hybrid.pth',
-            'large': 'omnidata_rgb2depth_dpt_large.pth'
-        })
-
-        from dpt.dpt_depth import DPTDepthModel
-
-        vit = DPTDepthModel(backbone=model_string[backbone])
-
-        pretrained_model_path = os.path.join(omnidata_model_path, model_path[backbone])
-        checkpoint = torch.load(pretrained_model_path, map_location=device)
-        if 'state_dict' in checkpoint:
-            state_dict = {}
-            for k, v in checkpoint['state_dict'].items():
-                state_dict[k[6:]] = v
-        else:
-            state_dict = checkpoint
-
-        vit.load_state_dict(state_dict, strict=False)
-        vit = vit.pretrained.model
-
-        print(f'Loaded backbone:{backbone} pretrain_backbone:{pretrain_backbone}!')
-
-    if pretrain_backbone != 'dino':
-        vit = prepare_timm_model(vit)
-
-    assert vit is not None, f'Couldn\'t load model! Select one of the supported combinations | backbone: [pretraining] | {supported_pretraining}'
-    return vit
-
-def prepare_timm_model(model):
+    # override functions to fit DINO interface
     def get_last_selfattention(self, x):
         x = self.patch_embed(x)
         cls_token = self.cls_token.expand(x.shape[0], -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
@@ -248,46 +206,6 @@ def prepare_timm_model(model):
             
     model.get_last_selfattention = types.MethodType(get_last_selfattention, model)
     
-    return model
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser('Visualize Self-Attention maps')
-    parser.add_argument('--backbone', default='base', type=str,
-        choices=['base', 'small', 'large', 'hybrid'], help='Backbone type.')
-    parser.add_argument('--pretrain_backbone', default='in21k', type=str,
-        choices=['in21k', 'dino', 'omnidata'], help='Backbone pretraining.')
-    parser.add_argument('--patch_size', default=16, type=int, help='Patch resolution of the model.')
-    
-    parser.add_argument('--cls_action', default=False, type=bool,
-        help="Whether model embeds action in CLS token.")
-    
-    parser.add_argument('--pretrained_weights', default='', type=str,
-        help="Path to pretrained weights to load.")
-    parser.add_argument('--omnidata_model_path', default='', type=str,
-        help="Path to pretrained omnidata weights to load.")
-            
-    parser.add_argument("--image_path", default=None, type=str, help="Path of the image to load.")
-    parser.add_argument("--image_size", default=(384, 384), type=int, nargs="+", help="Resize image.")
-    parser.add_argument('--output_dir', default='imgs_attention_heads', help='Path where to save visualizations.')
-    parser.add_argument("--threshold", type=float, default=None, help="""We visualize masks
-        obtained by thresholding the self-attention maps to keep xx% of the mass.""")
-    parser.add_argument('--matplotlib_colors', default=False, type=bool,
-        help="Visualize self-attention maps with matplotlib color scheme. This takes quite some time!")
-    args = parser.parse_args()
-
-    # get filename and remove ending
-    fname_original = args.image_path.split('/')[-1].split('.')[0]
-    args.output_dir = os.path.join(args.output_dir,  f'{args.backbone}_{args.pretrain_backbone}{"_trained" if args.pretrained_weights != "" else ""}', fname_original)
-    
-    os.makedirs(args.output_dir, exist_ok=True)
-
-    with open(os.path.join(args.output_dir, 'config.txt'), 'w') as f:
-        print(vars(args), file=f)
-
-    device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    model = load_model(backbone=args.backbone, pretrain_backbone=args.pretrain_backbone, 
-                        pretrained_weights=args.pretrained_weights, omnidata_model_path=args.omnidata_model_path,
-                        cls_action=args.cls_action, device=device) 
     for p in model.parameters():
         p.requires_grad = False
     model.eval()
@@ -311,9 +229,9 @@ if __name__ == '__main__':
     transform = pth_transforms.Compose([
         pth_transforms.Resize(args.image_size),
         pth_transforms.ToTensor(),
-        # pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
-    img = transform(img) * 255.
+    img = transform(img)
 
     # make the image divisible by the patch size
     w, h = img.shape[1] - img.shape[1] % args.patch_size, img.shape[2] - img.shape[2] % args.patch_size
@@ -344,10 +262,12 @@ if __name__ == '__main__':
 
     attentions = attentions.reshape(nh, w_featmap, h_featmap)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=args.patch_size, mode="nearest")[0].cpu().numpy()
+
+    os.makedirs(args.output_dir, exist_ok=True)
     
     # save original image
     fname = os.path.join(args.output_dir, "img.png")
-    torchvision.utils.save_image(img / 255., fname, normalize=False)
+    torchvision.utils.save_image(torchvision.utils.make_grid(img, normalize=True, scale_each=True), fname)
     print(f"{fname} saved.")
 
     # map to matplotlib colors
