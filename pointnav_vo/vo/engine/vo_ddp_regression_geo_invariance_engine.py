@@ -15,6 +15,7 @@ from collections import defaultdict, OrderedDict
 import torch
 import torch.optim as optim
 import torch.distributed as dist
+import torch.multiprocessing as mp
 from torch import autograd
 from torch.utils.data.dataloader import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -144,7 +145,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             self.train_distributed(rank=0, world_size=1)
 
     def train_distributed(self, rank, world_size):
-        
+        print('spawned rank', rank)
         self.setup(rank, world_size)
 
         trainer_init = baseline_registry.get_vo_engine(self.engine_name)
@@ -201,7 +202,9 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                     while True:
 
                         try:
+                            print('load')
                             batch_data = next(train_iter)
+                            print('loaded')
                         # NOTE RuntimeError: DataLoader timed out after 300 seconds
                         except RuntimeError  as re:
                             print(re)
