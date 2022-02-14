@@ -84,11 +84,11 @@ class TensorboardWriter:
     def add_image(
         self, descriptor: str, img: Any, global_step: int, dataformats=None, *args: Any, **kwargs: Any
     ) -> None:
+        if len(img.shape) < 3:
+            img = img.unsqueeze(-1)
         if self.use_wandb:
-            if len(img.shape) < 3:
-                img = img.unsqueeze(-1)
-                img = wandb.Image(img.permute(2,0,1), caption="")
-                wandb.log({descriptor: img}, step=int(global_step))
+            img = wandb.Image(img.permute(2,0,1), caption="")
+            wandb.log({descriptor: img}, step=int(global_step))
         else:
             self.writer.add_image(descriptor, img.permute(2,0,1), global_step)
 
