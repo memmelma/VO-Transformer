@@ -47,7 +47,7 @@ VO:
     log_grad: False
     log_grad_interval: 200
     optim: "adamw"
-
+    mixed_precision: True
     collision: "-1"   # whether to train w/ or w/o collision data. -1 means we train on all data no matter whether there is collsion or not.
 
     # choices: [-1, 1, 2, 3, [2, 3]]

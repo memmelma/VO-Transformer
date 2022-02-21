@@ -40,6 +40,8 @@ TIMEOUT = 10 * 60 # 5 * 60
 
 DELTA_DIM = 3
 
+from torch.cuda.amp import autocast, GradScaler
+
 class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
     
     def __init__(self, config: Config = None, run_type: str = "train", engine_name: str = "", verbose: bool = True):
@@ -188,6 +190,9 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             TensorboardWriter(self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs, config=self.config, rank=rank)
         ) as writer:
             
+            if self.config.VO.TRAIN.mixed_precision:
+                scaler = GradScaler()
+
             for epoch in tqdm(range(start_epoch, self.config.VO.TRAIN.epochs), disable=True):
                 # start = time.time()
                 # print(f'Rank {rank} epoch {epoch}/{self.config.VO.TRAIN.epochs} time {np.round(time.time()-start,3)}')
@@ -226,30 +231,50 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                             self.optimizer[act].zero_grad()
 
                         with (
-                            autograd.detect_anomaly()
-                            if self.config.DEBUG
-                            else contextlib.suppress()
+                            contextlib.suppress()
+                            # # Causes mixed precision to crash
+                            # autograd.detect_anomaly()
+                            # if self.config.DEBUG
+                            # else contextlib.suppress()
                         ):
 
                             abs_diffs = {}
                             target_magnitudes = {}
                             relative_diffs = {}
 
-                            (
-                                loss,
-                                cur_batch_size,
-                                batch_pairs,
-                                tmp_data_types,
-                                infos_for_log,
-                            ) = self._process_one_batch(
-                                batch_data,
-                                self.geo_invariance_types,
-                                abs_diffs,
-                                target_magnitudes,
-                                relative_diffs,
-                                train_flag=True,
-                                rank=rank,
-                            )
+                            if self.config.VO.TRAIN.mixed_precision:
+                                with autocast():
+                                    (
+                                        loss,
+                                        cur_batch_size,
+                                        batch_pairs,
+                                        tmp_data_types,
+                                        infos_for_log,
+                                    ) = self._process_one_batch(
+                                        batch_data,
+                                        self.geo_invariance_types,
+                                        abs_diffs,
+                                        target_magnitudes,
+                                        relative_diffs,
+                                        train_flag=True,
+                                        rank=rank,
+                                    )
+                            else:
+                                (
+                                    loss,
+                                    cur_batch_size,
+                                    batch_pairs,
+                                    tmp_data_types,
+                                    infos_for_log,
+                                ) = self._process_one_batch(
+                                    batch_data,
+                                    self.geo_invariance_types,
+                                    abs_diffs,
+                                    target_magnitudes,
+                                    relative_diffs,
+                                    train_flag=True,
+                                    rank=rank,
+                                )
 
                             (
                                 abs_diffs,
@@ -261,7 +286,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                                 debug_abs_diff_geo_inverse_pos,
                             ) = infos_for_log
                             
-                            loss.backward()
+                            if self.config.VO.TRAIN.mixed_precision:
+                                scaler.scale(loss).backward()
 
                             if self.config.VO.TRAIN.log_grad and rank == 0:
                                 self._log_grad(
@@ -269,7 +295,13 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                                 )
 
                             for act in self._act_list:
-                                self.optimizer[act].step()
+                                if self.config.VO.TRAIN.mixed_precision:
+                                    scaler.step(self.optimizer[act])
+                                else:
+                                    self.optimizer[act].step()
+                                    
+                            if self.config.VO.TRAIN.mixed_precision:
+                                scaler.update()
 
                             if rank == 0:
                                 self._log_lr(writer, global_step)
