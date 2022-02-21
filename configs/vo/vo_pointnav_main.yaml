@@ -46,7 +46,7 @@ VO:
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
     log_grad: False
     log_grad_interval: 200
-    optim: "adam"
+    optim: "adamw"
 
     collision: "-1"   # whether to train w/ or w/o collision data. -1 means we train on all data no matter whether there is collsion or not.
 

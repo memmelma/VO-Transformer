@@ -16,8 +16,10 @@ class VOTransformerRegressionGeometricInvarianceEngine(VODDPRegressionGeometricI
     def _set_up_optimizer(self):
 
         self.optimizer = {}
+        self.optimizer_dict = {'adam': optim.Adam, 'adamw': optim.AdamW}
+
         for act in self._act_list:
-            self.optimizer[act] = optim.Adam(
+            self.optimizer[act] = self.optimizer_dict[self.config.VO.TRAIN.optim](
                 [{'params': self.vo_model[act].vit.parameters(), 'lr': self.config.VO.TRAIN.backbone_lr / 10},
                 {'params': self.vo_model[act].running_mean_and_var.parameters()},
                 {'params': self.vo_model[act].head.parameters()}],

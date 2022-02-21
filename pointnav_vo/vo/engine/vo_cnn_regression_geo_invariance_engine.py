@@ -15,9 +15,10 @@ class VOCNNRegressionGeometricInvarianceEngine(VODDPRegressionGeometricInvarianc
 
     def _set_up_optimizer(self):
 
-        self.optimizer = {}
+        self.optimizer_dict = {'adam': optim.Adam, 'adamw': optim.AdamW}
+
         for act in self._act_list:
-            self.optimizer[act] = optim.Adam(
+            self.optimizer[act] = self.optimizer_dict[self.config.VO.TRAIN.optim](
                 list(
                     filter(lambda p: p.requires_grad, self.vo_model[act].parameters())
                 ),
