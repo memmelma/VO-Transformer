@@ -40,11 +40,13 @@ import timm
 import types
 from matplotlib import cm
 
+from pointnav_vo.vo.common.common_vars import *
+from pointnav_vo.vo import VisualOdometryTransformerActEmbed
+
 def apply_mask(image, mask, color, alpha=0.5):
     for c in range(3):
         image[:, :, c] = image[:, :, c] * (1 - alpha * mask) + alpha * mask * color[c] * 255
     return image
-
 
 def random_colors(N, bright=True):
     """
@@ -55,7 +57,6 @@ def random_colors(N, bright=True):
     colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
     random.shuffle(colors)
     return colors
-
 
 def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, contour=True, alpha=0.5):
     fig = plt.figure(figsize=figsize, frameon=False)
@@ -99,7 +100,7 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
     print(f"{fname} saved.")
     return
 
-def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights=''):
+def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='', omnidata_model_path='', cls_action=False, device='cpu'):
 
     supported_pretraining = dict({
         'small': ['in21k', 'dino'],
@@ -113,7 +114,37 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
     assert pretrain_backbone in supported_pretraining[backbone] or pretrain_backbone == 'None', \
     f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {supported_pretraining[backbone]}.'
 
-    if pretrain_backbone == 'in21k':
+    if pretrained_weights != '':
+        assert os.path.exists(pretrained_weights), f'Path {pretrained_weights} does not exist!'
+    
+        model = VisualOdometryTransformerActEmbed(
+                backbone=backbone,
+                cls_action = cls_action,
+                train_backbone=False,
+                pretrain_backbone=pretrain_backbone,
+                omnidata_model_path=omnidata_model_path,
+                normalize_visual_inputs=True,
+                hidden_size=512,
+                output_dim=len(DEFAULT_DELTA_TYPES),
+                dropout_p=0.2,
+                n_acts=N_ACTS,
+            )
+        checkpoint = torch.load(pretrained_weights, map_location=device)
+        def convert_dataparallel_weights(weights):
+            converted_weights = {}
+            keys = weights.keys()
+            for key in keys:
+                new_key = key.split("module.")[-1]
+                converted_weights[new_key] = weights[key]
+            return converted_weights
+        model_state = convert_dataparallel_weights(checkpoint['model_states'][-1])
+
+        model.load_state_dict(model_state, strict=True)
+        vit = model.vit
+
+        print(f'Loaded pretrained weights backbone:{backbone} pretrain_backbone:{pretrain_backbone}!')
+    
+    elif pretrain_backbone == 'in21k':
         model_string = dict({
             'small': 'vit_small_patch16_384',
             'base': 'vit_base_patch16_384',
@@ -123,6 +154,8 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
         vit = timm.create_model(model_string[backbone], pretrained=True)
         vit = prepare_timm_model(vit)
 
+        print(f'Loaded backbone:{backbone} pretrain_backbone:{pretrain_backbone}!')
+
     elif pretrain_backbone == 'dino':
         model_string = dict({
             'small': 'dino_vits16',
@@ -130,9 +163,11 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
         })
         vit = torch.hub.load('facebookresearch/dino:main', model_string[backbone])
 
+        print(f'Loaded backbone:{backbone} pretrain_backbone:{pretrain_backbone}!')
+
     elif pretrain_backbone == 'omnidata':
         
-        assert os.path.exists(pretrained_weights), f'Path {pretrained_weights} does not exist!'
+        assert os.path.exists(omnidata_model_path), f'Path {omnidata_model_path} does not exist!'
 
         model_string = dict({
             'hybrid': 'vitb_rn50_384',
@@ -148,8 +183,8 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
 
         vit = DPTDepthModel(backbone=model_string[backbone])
 
-        pretrained_model_path = os.path.join(pretrained_weights, model_path[backbone])
-        checkpoint = torch.load(pretrained_model_path, map_location='cuda:0')
+        pretrained_model_path = os.path.join(omnidata_model_path, model_path[backbone])
+        checkpoint = torch.load(pretrained_model_path, map_location=device)
         if 'state_dict' in checkpoint:
             state_dict = {}
             for k, v in checkpoint['state_dict'].items():
@@ -159,6 +194,10 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
 
         vit.load_state_dict(state_dict, strict=False)
         vit = vit.pretrained.model
+
+        print(f'Loaded backbone:{backbone} pretrain_backbone:{pretrain_backbone}!')
+
+    if pretrain_backbone != 'dino':
         vit = prepare_timm_model(vit)
 
     assert vit is not None, f'Couldn\'t load model! Select one of the supported combinations | backbone: [pretraining] | {supported_pretraining}'
@@ -218,19 +257,37 @@ if __name__ == '__main__':
     parser.add_argument('--pretrain_backbone', default='in21k', type=str,
         choices=['in21k', 'dino', 'omnidata'], help='Backbone pretraining.')
     parser.add_argument('--patch_size', default=16, type=int, help='Patch resolution of the model.')
+    
+    parser.add_argument('--cls_action', default=False, type=bool,
+        help="Whether model embeds action in CLS token.")
+    
     parser.add_argument('--pretrained_weights', default='', type=str,
         help="Path to pretrained weights to load.")
+    parser.add_argument('--omnidata_model_path', default='', type=str,
+        help="Path to pretrained omnidata weights to load.")
+            
     parser.add_argument("--image_path", default=None, type=str, help="Path of the image to load.")
     parser.add_argument("--image_size", default=(384, 384), type=int, nargs="+", help="Resize image.")
-    parser.add_argument('--output_dir', default='.', help='Path where to save visualizations.')
+    parser.add_argument('--output_dir', default='imgs_attention_heads', help='Path where to save visualizations.')
     parser.add_argument("--threshold", type=float, default=None, help="""We visualize masks
         obtained by thresholding the self-attention maps to keep xx% of the mass.""")
-    parser.add_argument('--matplotlib-colors', default=False, type=bool,
+    parser.add_argument('--matplotlib_colors', default=False, type=bool,
         help="Visualize self-attention maps with matplotlib color scheme. This takes quite some time!")
     args = parser.parse_args()
 
+    # get filename and remove ending
+    fname_original = args.image_path.split('/')[-1].split('.')[0]
+    args.output_dir = os.path.join(args.output_dir,  f'{args.backbone}_{args.pretrain_backbone}{"_trained" if args.pretrained_weights != "" else ""}', fname_original)
+    
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    with open(os.path.join(args.output_dir, 'config.txt'), 'w') as f:
+        print(vars(args), file=f)
+
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-    model = load_model(backbone=args.backbone, pretrain_backbone=args.pretrain_backbone, pretrained_weights=args.pretrained_weights) 
+    model = load_model(backbone=args.backbone, pretrain_backbone=args.pretrain_backbone, 
+                        pretrained_weights=args.pretrained_weights, omnidata_model_path=args.omnidata_model_path,
+                        cls_action=args.cls_action, device=device) 
     for p in model.parameters():
         p.requires_grad = False
     model.eval()
@@ -254,9 +311,9 @@ if __name__ == '__main__':
     transform = pth_transforms.Compose([
         pth_transforms.Resize(args.image_size),
         pth_transforms.ToTensor(),
-        pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        # pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
-    img = transform(img)
+    img = transform(img) * 255.
 
     # make the image divisible by the patch size
     w, h = img.shape[1] - img.shape[1] % args.patch_size, img.shape[2] - img.shape[2] % args.patch_size
@@ -287,12 +344,10 @@ if __name__ == '__main__':
 
     attentions = attentions.reshape(nh, w_featmap, h_featmap)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=args.patch_size, mode="nearest")[0].cpu().numpy()
-
-    os.makedirs(args.output_dir, exist_ok=True)
     
     # save original image
     fname = os.path.join(args.output_dir, "img.png")
-    torchvision.utils.save_image(torchvision.utils.make_grid(img, normalize=True, scale_each=True), fname)
+    torchvision.utils.save_image(img / 255., fname, normalize=False)
     print(f"{fname} saved.")
 
     # map to matplotlib colors

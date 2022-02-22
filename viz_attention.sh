@@ -21,6 +21,5 @@
 
 python visualize_attention.py --backbone base --pretrain_backbone in21k \
 --pretrained_weights /datasets/home/memmel/PointNav-VO/train_log/move_forward/seed_100-vo-noise_1-train-rgb-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-base-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_20-lr_0.00025-w_de_0.0-20220210_173809360490/checkpoints/ckpt_epoch_70.pth \
---threshold 0.1 --matplotlib-colors True \
---output_dir /datasets/home/memmel/PointNav-VO/imgs_attention_heads \
+--threshold 0.1 --matplotlib_colors True \
 --image_path /datasets/home/memmel/PointNav-VO/imgs_test/img_norm_9_act_3.png
