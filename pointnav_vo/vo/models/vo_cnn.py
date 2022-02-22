@@ -12,6 +12,7 @@ from pointnav_vo.model_utils.visual_encoders import resnet
 from pointnav_vo.model_utils.running_mean_and_var import RunningMeanAndVar
 from pointnav_vo.vo.common.common_vars import *
 
+import timm
 
 class ResNetEncoder(nn.Module):
     def __init__(
@@ -23,7 +24,8 @@ class ResNetEncoder(nn.Module):
         ngroups=32,
         spatial_size_w=128,
         spatial_size_h=128,
-        make_backbone=None,
+        backbone=None,
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         after_compression_flat_size=2048,
         rgb_pair_channel=RGB_PAIR_CHANNEL,
@@ -58,7 +60,7 @@ class ResNetEncoder(nn.Module):
         else:
             self._n_input_top_down_view = 0
 
-        input_channels = (
+        self.input_channels = (
             self._n_input_depth
             + self._n_input_rgb
             + self._n_input_discretized_depth
@@ -66,14 +68,33 @@ class ResNetEncoder(nn.Module):
         )
 
         # NOTE: visual odometry must not be blind
-        assert input_channels > 0
+        assert self.input_channels > 0
 
         if normalize_visual_inputs:
-            self.running_mean_and_var = RunningMeanAndVar(input_channels)
+            self.running_mean_and_var = RunningMeanAndVar(self.input_channels)
         else:
             self.running_mean_and_var = nn.Sequential()
 
-        self.backbone = make_backbone(input_channels, baseplanes, ngroups)
+        self.feature_dimensions = dict({
+            'resnet18': 512,
+            'resnet50': 2048,
+            'resnet101': 2048,
+            'resnet200': 2048
+        })
+
+        self.supported_pretraining = dict({
+            'resnet18': ['in21k'],
+            'resnet50': ['in21k'],
+            'resnet101': [],
+            'resnet200': []
+        })
+
+        assert pretrain_backbone in self.supported_pretraining[backbone] or pretrain_backbone == 'None', \
+        f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {self.supported_pretraining[backbone]}.'
+
+        # paper implementation
+        self.backbone = getattr(resnet, 'resnet'+backbone[-2:])(self.input_channels, baseplanes, ngroups)
+
         final_spatial_w = int(
             np.ceil(spatial_size_w * self.backbone.final_spatial_compress)
         )
@@ -83,6 +104,13 @@ class ResNetEncoder(nn.Module):
         num_compression_channels = int(
             round(after_compression_flat_size / (final_spatial_w * final_spatial_h))
         )
+
+        # timm override
+        if 'base' not in backbone:
+            self.backbone = timm.create_model(backbone, pretrained=True if pretrain_backbone == 'in21k' else False, in_chans=self.input_channels)
+            self.backbone.final_channels = self.feature_dimensions[backbone]
+            self.backbone.forward = self.backbone.forward_features
+
         self.compression = nn.Sequential(
             nn.Conv2d(
                 self.backbone.final_channels,
@@ -100,6 +128,7 @@ class ResNetEncoder(nn.Module):
             final_spatial_h,
             final_spatial_w,
         )
+        
 
     def layer_init(self):
         for layer in self.modules():
@@ -189,6 +218,7 @@ class VisualOdometryCNNBase(nn.Module):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -206,7 +236,8 @@ class VisualOdometryCNNBase(nn.Module):
             observation_size=observation_size,
             baseplanes=resnet_baseplanes,
             ngroups=resnet_baseplanes // 2,
-            make_backbone=getattr(resnet, backbone),
+            backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             after_compression_flat_size=after_compression_flat_size,
             rgb_pair_channel=rgb_pair_channel,
@@ -215,23 +246,34 @@ class VisualOdometryCNNBase(nn.Module):
             top_down_view_pair_channel=top_down_view_pair_channel,
         )
 
-        self.visual_fc = nn.Sequential(
+        # self.visual_fc = nn.Sequential(
+        #     Flatten(),
+        #     nn.Dropout(dropout_p),
+        #     nn.Linear(np.prod(self.visual_encoder.output_shape), hidden_size),
+        #     nn.ReLU(True),
+        # )
+
+        # self.output_head = nn.Sequential(
+        #     nn.Dropout(dropout_p), nn.Linear(hidden_size, output_dim),
+        # )
+        # nn.init.orthogonal_(self.output_head[1].weight)
+        # nn.init.constant_(self.output_head[1].bias, 0)
+
+        self.head = nn.Sequential(
             Flatten(),
             nn.Dropout(dropout_p),
             nn.Linear(np.prod(self.visual_encoder.output_shape), hidden_size),
             nn.ReLU(True),
-        )
-
-        self.output_head = nn.Sequential(
             nn.Dropout(dropout_p), nn.Linear(hidden_size, output_dim),
         )
-        nn.init.orthogonal_(self.output_head[1].weight)
-        nn.init.constant_(self.output_head[1].bias, 0)
+        nn.init.orthogonal_(self.head[-1].weight)
+        nn.init.constant_(self.head[-1].bias, 0)
 
-    def forward(self, observation_pairs):
+    def forward(self, observation_pairs):   
         visual_feats = self.visual_encoder(observation_pairs)
-        visual_feats = self.visual_fc(visual_feats)
-        output = self.output_head(visual_feats)
+        # visual_feats = self.visual_fc(visual_feats)
+        # output = self.output_head(visual_feats)
+        output = self.head(visual_feats)
         return output
 
 
@@ -245,6 +287,7 @@ class VisualOdometryCNN(VisualOdometryCNNBase):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -263,6 +306,7 @@ class VisualOdometryCNN(VisualOdometryCNNBase):
             hidden_size=hidden_size,
             resnet_baseplanes=resnet_baseplanes,
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             output_dim=output_dim,
             dropout_p=dropout_p,
@@ -279,6 +323,7 @@ class VisualOdometryCNNRGB(VisualOdometryCNNBase):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -286,7 +331,7 @@ class VisualOdometryCNNRGB(VisualOdometryCNNBase):
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
         **kwargs,
     ):
-        assert backbone == "resnet18"
+        # assert backbone == "resnet18"
         assert discretized_depth_channels == 0
         assert "depth" not in observation_space
         assert "discretized_depth" not in observation_space
@@ -298,6 +343,7 @@ class VisualOdometryCNNRGB(VisualOdometryCNNBase):
             hidden_size=hidden_size,
             resnet_baseplanes=resnet_baseplanes,
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             output_dim=output_dim,
             dropout_p=dropout_p,
@@ -314,6 +360,7 @@ class VisualOdometryCNNWider(VisualOdometryCNNBase):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -321,7 +368,7 @@ class VisualOdometryCNNWider(VisualOdometryCNNBase):
         top_down_view_pair_channel=TOP_DOWN_VIEW_PAIR_CHANNEL,
         **kwargs,
     ):
-        assert backbone == "resnet18"
+        # assert backbone == "resnet18"
         assert discretized_depth_channels == 0
         assert "discretized_depth" not in observation_space
         assert "top_down_view" not in observation_space
@@ -335,6 +382,7 @@ class VisualOdometryCNNWider(VisualOdometryCNNBase):
             hidden_size=hidden_size,
             resnet_baseplanes=resnet_baseplanes,
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             output_dim=output_dim,
             dropout_p=dropout_p,
@@ -351,6 +399,7 @@ class VisualOdometryCNNDeeper(VisualOdometryCNNBase):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet101",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -359,7 +408,7 @@ class VisualOdometryCNNDeeper(VisualOdometryCNNBase):
         **kwargs,
     ):
 
-        assert backbone == "resnet101"
+        assert backbone == "resnet101" or backbone =='base101'
         assert discretized_depth_channels == 0
         assert "discretized_depth" not in observation_space
         assert "top_down_view" not in observation_space
@@ -370,6 +419,7 @@ class VisualOdometryCNNDeeper(VisualOdometryCNNBase):
             hidden_size=hidden_size,
             resnet_baseplanes=resnet_baseplanes,
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             output_dim=output_dim,
             dropout_p=dropout_p,
@@ -386,6 +436,7 @@ class VisualOdometryCNNDiscretizedDepth(VisualOdometryCNNBase):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -394,7 +445,7 @@ class VisualOdometryCNNDiscretizedDepth(VisualOdometryCNNBase):
         **kwargs,
     ):
 
-        assert backbone == "resnet18"
+        # assert backbone == "resnet18"
         assert "discretized_depth" in observation_space
         assert "top_down_view" not in observation_space
 
@@ -404,6 +455,7 @@ class VisualOdometryCNNDiscretizedDepth(VisualOdometryCNNBase):
             hidden_size=hidden_size,
             resnet_baseplanes=resnet_baseplanes,
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             output_dim=output_dim,
             dropout_p=dropout_p,
@@ -422,6 +474,7 @@ class VisualOdometryCNN_RGB_D_TopDownView(VisualOdometryCNNBase):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -430,7 +483,7 @@ class VisualOdometryCNN_RGB_D_TopDownView(VisualOdometryCNNBase):
         **kwargs,
     ):
 
-        assert backbone == "resnet18"
+        # assert backbone == "resnet18"
         assert "rgb" in observation_space
         assert "depth" in observation_space
         assert "discretized_depth" not in observation_space
@@ -442,6 +495,7 @@ class VisualOdometryCNN_RGB_D_TopDownView(VisualOdometryCNNBase):
             hidden_size=hidden_size,
             resnet_baseplanes=resnet_baseplanes,
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             output_dim=output_dim,
             dropout_p=dropout_p,
@@ -460,6 +514,7 @@ class VisualOdometryCNN_RGB_DD_TopDownView(VisualOdometryCNNBase):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -468,7 +523,7 @@ class VisualOdometryCNN_RGB_DD_TopDownView(VisualOdometryCNNBase):
         **kwargs,
     ):
 
-        assert backbone == "resnet18"
+        # assert backbone == "resnet18"
         assert "rgb" in observation_space
         assert "depth" not in observation_space
         assert "discretized_depth" in observation_space
@@ -480,6 +535,7 @@ class VisualOdometryCNN_RGB_DD_TopDownView(VisualOdometryCNNBase):
             hidden_size=hidden_size,
             resnet_baseplanes=resnet_baseplanes,
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             output_dim=output_dim,
             dropout_p=dropout_p,
@@ -499,6 +555,7 @@ class VisualOdometryCNN_D_DD_TopDownView(VisualOdometryCNNBase):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -507,7 +564,7 @@ class VisualOdometryCNN_D_DD_TopDownView(VisualOdometryCNNBase):
         **kwargs,
     ):
 
-        assert backbone == "resnet18"
+        # assert backbone == "resnet18"
         assert "rgb" not in observation_space
         assert "depth" in observation_space
         assert "discretized_depth" in observation_space
@@ -519,6 +576,7 @@ class VisualOdometryCNN_D_DD_TopDownView(VisualOdometryCNNBase):
             hidden_size=hidden_size,
             resnet_baseplanes=resnet_baseplanes,
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             output_dim=output_dim,
             dropout_p=dropout_p,
@@ -538,6 +596,7 @@ class VisualOdometryCNNDiscretizedDepthTopDownView(VisualOdometryCNNBase):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -556,6 +615,7 @@ class VisualOdometryCNNDiscretizedDepthTopDownView(VisualOdometryCNNBase):
             hidden_size=hidden_size,
             resnet_baseplanes=resnet_baseplanes,
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             output_dim=output_dim,
             dropout_p=dropout_p,
