@@ -3,7 +3,7 @@ export POINTNAV_VO_ROOT=$PWD
 export NUMBA_NUM_THREADS=1 && \
 export NUMBA_THREADING_LAYER=workqueue && \
 ulimit -n 65000 && \
-CUDA_VISIBLE_DEVICES=0 python ${POINTNAV_VO_ROOT}/launch.py \
+python ${POINTNAV_VO_ROOT}/launch.py \
 --repo-path ${POINTNAV_VO_ROOT} \
 --n_gpus 1 \
 --task-type vo \

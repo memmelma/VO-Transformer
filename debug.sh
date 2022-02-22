@@ -11,4 +11,5 @@ python ${POINTNAV_VO_ROOT}/launch.py \
 --run-type train \
 --addr 127.0.1.1 \
 --port 8338 \
---config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/vo_pointnav_debug.yaml
+$@
+# --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/vo_pointnav_main.yaml
