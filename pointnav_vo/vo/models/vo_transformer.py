@@ -12,7 +12,6 @@ from pointnav_vo.model_utils.running_mean_and_var import RunningMeanAndVar
 from pointnav_vo.vo.common.common_vars import *
 
 import PIL
-from pointnav_vo.vo.models.vo_cnn import ResNetEncoder
 from pointnav_vo.depth_estimator.modules.midas.dpt_depth import DPTDepthModel
 from torchvision import transforms
 
@@ -219,8 +218,9 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         # normalize RGB
         x = x.permute(0,3,1,2)
         x = x / 255.0
+        x = F.interpolate(x, size=(384, 384))
 
-        # normalize visual inputs
+        # normalize visual inputs w/ running mean
         x = self.running_mean_and_var(x)
 
         features = self.vit.forward(x, actions, self.EMBED_DIM)

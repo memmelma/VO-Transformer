@@ -15,10 +15,7 @@ SIMULATOR:
     # WIDTH: 640
     # HEIGHT: 360
     # change made by VO repo
-    # WIDTH: 341
-    # HEIGHT: 192
-    # changes made by me
-    WIDTH: 384
+    WIDTH: 341
     HEIGHT: 192
     HFOV: 70
     POSITION: [0, 0.88, 0]
@@ -31,10 +28,7 @@ SIMULATOR:
     # WIDTH: 640
     # HEIGHT: 360
     # change made by VO repo
-    # WIDTH: 341
-    # HEIGHT: 192
-    # changes made by me
-    WIDTH: 384
+    WIDTH: 341
     HEIGHT: 192
     HFOV: 70
     MIN_DEPTH: 0.1
