@@ -24,7 +24,7 @@ import habitat
 from habitat import Config, logger
 
 from pointnav_vo.vo.engine.vo_cnn_engine import VOCNNBaseEngine
-from pointnav_vo.utils.tensorboard_utils import TensorboardWriter
+from pointnav_vo.utils.wandb_utils import WandbWriter
 from pointnav_vo.utils.baseline_registry import baseline_registry
 from pointnav_vo.vo.dataset.regression_geo_invariance_iter_dataset import (
     StatePairRegressionDataset,
@@ -187,7 +187,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
         grad_info_dict = OrderedDict()
 
         with (
-            TensorboardWriter(self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs, config=self.config, rank=rank)
+            WandbWriter(config=self.config, rank=rank)
         ) as writer:
             
             if self.config.VO.TRAIN.mixed_precision:
