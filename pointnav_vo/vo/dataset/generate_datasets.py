@@ -562,11 +562,25 @@ def generate_datasets(
         )
         print("\n...done.\n")
 
-        print(f"Rollout {episode_cnt} episodes for {name}'s {N} data points.")
-        for k, v in action_cnt.items():
-            print(f"{ACTIONS[k]}: {v}")
-        for k, v in info_dict.items():
-            print(k, v)
+        # print(f"Rollout {episode_cnt} episodes for {name}'s {N} data points.")
+        # for k, v in action_cnt.items():
+        #     print(f"{ACTIONS[k]}: {v}")
+        # for k, v in info_dict.items():
+        #     print(k, v)
+
+        with open(os.path.join(save_dir, f"{name}_{N_dict[name]}{(f'_{act_type}') if act_type != -1 else ''}.log"), 'a') as stats:
+            msg = f"Rollout {episode_cnt} episodes for {name}'s {N} data points.\n"
+            print(msg)
+            stats.write(msg)
+            for k, v in action_cnt.items():
+                msg = f"{ACTIONS[k]}: {v}\n"
+                stats.write(msg)
+                print(msg)
+            for k, v in info_dict.items():
+                msg = f"{str(k)} {str(v)}\n"
+                stats.write(msg)
+                print(msg)
+                
         # print("\n")
 
 
