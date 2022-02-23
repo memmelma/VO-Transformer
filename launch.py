@@ -73,7 +73,7 @@ if __name__ == "__main__":
     cur_time = datetime.datetime.now().strftime("%Y%m%d_%H%M%S%f")
 
     if args.task_type == "rl":
-        cur_config_f = os.path.join(args.repo_path, "configs/rl/ddppo_pointnav.yaml")
+        cur_config_f = os.path.join(args.repo_path, args.config_yaml)
     elif args.task_type == "vo":
         cur_config_f = os.path.join(args.repo_path, args.config_yaml)
     else:
