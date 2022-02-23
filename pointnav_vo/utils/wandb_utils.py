@@ -41,7 +41,7 @@ class WandbWriter:
         Returns:
             None.
         """
-        if not self.writer or self.use_wandb:
+        if not self.use_wandb:
             return
         
         # initial shape of np.ndarray list: N * (H, W, 3)
@@ -68,3 +68,9 @@ class WandbWriter:
         ) -> None:
         if self.use_wandb:
             wandb.log({descriptor: value}, step=int(global_step))
+
+    def add_scalars(
+        self, descriptor: str, values: dict, global_step: int, *args: Any, **kwargs: Any
+        ) -> None:
+        for k in values:
+            self.add_scalar(descriptor+k, values[k], global_step)
