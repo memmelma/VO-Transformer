@@ -104,6 +104,12 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             self.vit = self.vit.pretrained.model
 
         else: # pretrain_backbone == 'None'
+            model_string = dict({
+                'small': 'vit_small_patch16_384',
+                'base': 'vit_base_patch16_384',
+                'hybrid': 'vit_base_r50_s16_384',
+                'large': 'vit_large_patch16_384'
+            })
             self.vit = timm.create_model(model_string[backbone], pretrained=False)
 
         self.EMBED_DIM = self.feature_dimensions[backbone]
@@ -207,7 +213,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         # split connected RGB from b,h,w,3 -> b,h*2,w,3 -> b,3,h*2,w
         x = observation_pairs['rgb']
         x = torch.cat((x[:,:,:,:x.shape[-1]//2], x[:,:,:,x.shape[-1]//2:]),dim=1)
-        
+
         # import torchvision
         # for i, (x_i, a_i) in enumerate(zip(x, actions)):
         #     torchvision.utils.save_image(x_i.permute(2,0,1), f'test_imgs/img_{i}_act_{a_i}.png', normalize=False)
