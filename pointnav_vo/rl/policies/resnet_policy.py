@@ -29,7 +29,7 @@ class PointNavResNetPolicy(Policy):
         *,
         observation_space,
         action_space,
-        goal_sensor_uuid="pointgoal_with_gps_compass",
+        goal_sensor_uuid="pointgoal",
         hidden_size=512,
         num_recurrent_layers=2,
         rnn_type="LSTM",
@@ -244,6 +244,7 @@ class PointNavResNetNet(Net):
         return self.state_encoder.num_recurrent_layers
 
     def forward(self, observations, rnn_hidden_states, prev_actions, masks):
+        
         x = []
         if not self.is_blind:
             if "visual_features" in observations:
@@ -254,12 +255,16 @@ class PointNavResNetNet(Net):
             visual_feats = self.visual_fc(visual_feats)
             x.append(visual_feats)
 
-        # if IntegratedPointGoalGPSAndCompassSensor.cls_uuid in observations:
-        if "pointgoal_with_gps_compass" in observations:
-            # goal_observations = observations[
-            #     IntegratedPointGoalGPSAndCompassSensor.cls_uuid
-            # ]
-            goal_observations = observations["pointgoal_with_gps_compass"]
+        # # if IntegratedPointGoalGPSAndCompassSensor.cls_uuid in observations:
+        # if "pointgoal_with_gps_compass" in observations:
+        #     # goal_observations = observations[
+        #     #     IntegratedPointGoalGPSAndCompassSensor.cls_uuid
+        #     # ]
+        #    goal_observations = observations["pointgoal_with_gps_compass"]
+
+        
+        if "pointgoal" in observations:
+            goal_observations = observations["pointgoal"]
             goal_observations = torch.stack(
                 [
                     goal_observations[:, 0],

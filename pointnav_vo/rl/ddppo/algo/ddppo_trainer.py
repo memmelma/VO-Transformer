@@ -30,7 +30,8 @@ from habitat import Config, logger
 from pointnav_vo.utils.baseline_registry import baseline_registry
 from pointnav_vo.utils.config_utils import update_config_log, convert_cfg_to_dict
 from pointnav_vo.utils.geometry_utils import compute_goal_pos
-from pointnav_vo.utils.tensorboard_utils import TensorboardWriter
+# from pointnav_vo.utils.tensorboard_utils import TensorboardWriter
+from pointnav_vo.utils.wandb_utils import WandbWriter
 from pointnav_vo.utils.misc_utils import (
     batch_obs,
     linear_decay,
@@ -250,7 +251,7 @@ class DDPPOTrainer(PPOTrainer):
                 tmp_goal = compute_goal_pos(
                     np.array(tmp.goals[0].position), [dx, dz, dyaw]
                 )
-                observations[i]["pointgoal_with_gps_compass"] = tmp_goal["polar"]
+                observations[i]["pointgoal"] = tmp_goal["polar"]
                 self._prev_goal_positions.append(tmp_goal)
 
         obs_space = self.envs.observation_spaces[0]
@@ -342,9 +343,10 @@ class DDPPOTrainer(PPOTrainer):
             prev_time = requeue_stats["prev_time"]
 
         with (
-            TensorboardWriter(self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs)
-            if self.world_rank == 0
-            else contextlib.suppress()
+            # TensorboardWriter(self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs)
+            # if self.world_rank == 0
+            # else contextlib.suppress()
+            WandbWriter(config=self.config, rank=self.world_rank)
         ) as writer:
 
             for update in range(start_update, self.config.NUM_UPDATES):

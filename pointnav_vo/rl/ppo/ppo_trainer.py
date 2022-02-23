@@ -233,7 +233,7 @@ class PPOTrainer(BaseRLTrainerWithVO):
                         self._prev_goal_positions[i]["cartesian"], local_delta_states
                     )
 
-                observations[i]["pointgoal_with_gps_compass"] = tmp_goal["polar"]
+                observations[i]["pointgoal"] = tmp_goal["polar"]
                 self._prev_goal_positions[i] = tmp_goal
 
             self._prev_obs = observations
