@@ -21,7 +21,9 @@ import habitat
 from habitat import Config, logger
 from habitat.utils.visualizations import maps
 
-from pointnav_vo.utils.tensorboard_utils import TensorboardWriter
+# from pointnav_vo.utils.tensorboard_utils import TensorboardWriter
+from pointnav_vo.utils.wandb_utils import WandbWriter
+
 from pointnav_vo.vis.utils import resize_top_down_map
 from pointnav_vo.vo.common.common_vars import *
 
@@ -99,9 +101,11 @@ class BaseRLTrainer(BaseTrainer):
                 len(self.config.VIDEO_DIR) > 0
             ), "Must specify a directory for storing videos on disk"
 
-        with TensorboardWriter(
-            self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
-        ) as writer:
+        # with TensorboardWriter(
+        #     self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
+        # ) as writer:
+
+        with WandbWriter(config=self.config) as writer:
 
             if os.path.isfile(self.config.EVAL.EVAL_CKPT_PATH):
                 # evaluate singe checkpoint
@@ -358,7 +362,7 @@ class BaseRLTrainer(BaseTrainer):
     def _eval_checkpoint(
         self,
         checkpoint_path: str,
-        writer: TensorboardWriter,
+        writer: WandbWriter,
         checkpoint_index: int = 0,
     ) -> None:
         r"""Evaluates a single checkpoint. Trainer algorithms should
