@@ -41,16 +41,13 @@ class WandbWriter:
         Returns:
             None.
         """
-        if not self.use_wandb:
-            return
-        
-        # initial shape of np.ndarray list: N * (H, W, 3)
-        frame_tensors = [torch.from_numpy(np_arr).unsqueeze(0) for np_arr in images]
-        video_tensor = torch.cat(tuple(frame_tensors))
-        video_tensor = video_tensor.permute(0, 3, 1, 2).unsqueeze(0)
-        # final shape of video tensor: (1, n, 3, H, W)
-
         if self.use_wandb:
+            # initial shape of np.ndarray list: N * (H, W, 3)
+            frame_tensors = [torch.from_numpy(np_arr).unsqueeze(0) for np_arr in images]
+            video_tensor = torch.cat(tuple(frame_tensors))
+            video_tensor = video_tensor.permute(0, 3, 1, 2).unsqueeze(0)
+            # final shape of video tensor: (1, n, 3, H, W)
+
             video = wandb.Video(data_or_path=video_tensor, caption=video_name, fps=fps)
             wandb.log({video_name: video}, step=int(step_idx))
 

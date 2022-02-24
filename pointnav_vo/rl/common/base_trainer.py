@@ -91,7 +91,7 @@ class BaseRLTrainer(BaseTrainer):
             else torch.device("cpu")
         )
 
-        if "tensorboard" in self.config.VIDEO_OPTION:
+        if "tensorboard" in self.config.VIDEO_OPTION or "wandb" in self.config.VIDEO_OPTION:
             assert (
                 len(self.config.TENSORBOARD_DIR) > 0
             ), "Must specify a tensorboard directory for video display"
@@ -104,7 +104,6 @@ class BaseRLTrainer(BaseTrainer):
         # with TensorboardWriter(
         #     self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
         # ) as writer:
-
         with WandbWriter(config=self.config) as writer:
 
             if os.path.isfile(self.config.EVAL.EVAL_CKPT_PATH):
@@ -429,6 +428,11 @@ class BaseRLTrainer(BaseTrainer):
         )
 
     def _save_info_dict(self, save_dict: Dict[str, List], f_path: str):
+        
+        # TODO fix
+        # when key k == 'config', value v is string which does not implement .extend() like list does
+        return
+
         if not os.path.isfile(f_path):
             tmp_dict = save_dict
         else:

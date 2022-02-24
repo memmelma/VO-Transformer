@@ -203,20 +203,20 @@ def generate_video(
     episode_id: int,
     checkpoint_idx: int,
     metrics: Dict[str, float],
-    tb_writer: TensorboardWriter,
+    tb_writer,#: TensorboardWriter,
     fps: int = 10,
 ) -> None:
     r"""Generate video according to specified information.
 
     Args:
-        video_option: string list of "tensorboard" or "disk" or both.
+        video_option: string list of "tensorboard" or "wandb" or "disk" or both.
         video_dir: path to target video directory.
         images: list of images to be converted to video.
         episode_id: episode id for video naming.
         checkpoint_idx: checkpoint index for video naming.
         metric_name: name of the performance metric, e.g. "spl".
         metric_value: value of metric.
-        tb_writer: tensorboard writer object for uploading video.
+        writer: tensorboard or wandb writer object for uploading video.
         fps: fps for generated video.
     Returns:
         None
@@ -232,7 +232,7 @@ def generate_video(
     if "disk" in video_option:
         assert video_dir is not None
         images_to_video(images, video_dir, video_name)
-    if "tensorboard" in video_option:
+    if "tensorboard" in video_option or "wandb" in video_option:
         tb_writer.add_video_from_np_images(
             f"episode{episode_id}", checkpoint_idx, images, fps=fps
         )
