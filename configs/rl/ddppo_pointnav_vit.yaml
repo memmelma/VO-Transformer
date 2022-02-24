@@ -5,7 +5,7 @@ ENGINE_NAME: "efficient_ddppo"
 ENV_NAME: "NavRLEnv"
 SENSORS: ["DEPTH_SENSOR", "RGB_SENSOR"]
 NUM_UPDATES: 5000000
-NUM_PROCESSES: 16 # scenes: eval 14/14 train 14/72
+NUM_PROCESSES: 1 # scenes: eval 14/14 train 16/72
 SIMULATOR_GPU_ID: 0
 TORCH_GPU_ID: 1
 
@@ -15,7 +15,7 @@ LOG_FILE: "{{LOG_DIR}}/train.log"
 INFO_DIR: "{{LOG_DIR}}/infos"
 CHECKPOINT_FOLDER: "{{LOG_DIR}}/checkpoints"
 TENSORBOARD_DIR: "{{LOG_DIR}}/tb"
-VIDEO_OPTION: ["tensorboard"]   # choices: ["none", "disk", "tensorboard"], "none" is used for storing image info but not generating video
+VIDEO_OPTION: ["wandb"]   # choices: ["none", "disk", "tensorboard", "wandb"], "none" is used for storing image info but not generating video
 VIDEO_DIR: "{{LOG_DIR}}/videos"
 CHECKPOINT_INTERVAL: 50
 LOG_INTERVAL: 1
@@ -25,7 +25,7 @@ DEBUG: False
 # evaluation settings
 EVAL:
   SPLIT: val
-  TEST_EPISODE_COUNT: -1
+  TEST_EPISODE_COUNT: -1 # number of test epsiodes: -1 equals all
   SAVE_RANKED_IMGS: False
   RANK_TOP_K: 1
   RESIZE_TOPDOWN_MAP: False

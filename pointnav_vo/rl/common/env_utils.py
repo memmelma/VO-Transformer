@@ -56,6 +56,10 @@ def construct_envs(config: Config, env_class: Type[Union[Env, RLEnv]]) -> Vector
     scenes = config.TASK_CONFIG.DATASET.CONTENT_SCENES
     if "*" in config.TASK_CONFIG.DATASET.CONTENT_SCENES:
         scenes = dataset.get_scenes_to_load(config.TASK_CONFIG.DATASET)
+    
+    if config.DEBUG:
+        print(f'config.DEBUG={config.DEBUG} only use one scene!')
+        scenes = [scenes[0]]
 
     if num_processes > 1:
         if len(scenes) == 0:
@@ -68,8 +72,6 @@ def construct_envs(config: Config, env_class: Type[Union[Env, RLEnv]]) -> Vector
                 "reduce the number of processes as there "
                 "aren't enough number of scenes"
             )
-
-        random.shuffle(scenes)
 
     scene_splits = [[] for _ in range(num_processes)]
     for idx, scene in enumerate(scenes):
