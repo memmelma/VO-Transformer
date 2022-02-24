@@ -1,7 +1,7 @@
 #!/bin/bash
-export POINTNAV_VO_ROOT=$PWD
-export NUMBA_NUM_THREADS=1 && \
-export NUMBA_THREADING_LAYER=workqueue && \
+# export POINTNAV_VO_ROOT=$PWD
+# export NUMBA_NUM_THREADS=1 && \
+# export NUMBA_THREADING_LAYER=workqueue && \
 ulimit -n 65000 && \
 python ${POINTNAV_VO_ROOT}/launch.py \
 --repo-path ${POINTNAV_VO_ROOT} \
