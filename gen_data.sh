@@ -1,10 +1,17 @@
 #!/bin/bash
-# export POINTNAV_VO_ROOT=$PWD
-# cp /datasets/home/memmel/PointNav-VO/WindowlessContext.cpp /home/memmel/habitat-sim/src/esp/gfx/WindowlessContext.cpp && \
-# cd /home/memmel/habitat-sim && \
-# python setup.py install --headless
-# cd ${POINTNAV_VO_ROOT}
-# export PYTHONPATH=${POINTNAV_VO_ROOT}:$PYTHONPATH && \
+# setup env variables
+export POINTNAV_VO_ROOT=$PWD && \
+export PYTHONPATH=${POINTNAV_VO_ROOT}:$PYTHONPATH && \
+export NUMBA_NUM_THREADS=1 && \
+export NUMBA_THREADING_LAYER=workqueue && \
+# apply habitat sim fix
+cp /datasets/home/memmel/PointNav-VO/WindowlessContext.cpp /home/memmel/habitat-sim/src/esp/gfx/WindowlessContext.cpp && \
+cd /home/memmel/habitat-sim && \
+python setup.py install --headless &&\
+cd ${POINTNAV_VO_ROOT} && \
+# login to git
+sh login_git.sh
+# exec script
 python ${POINTNAV_VO_ROOT}/pointnav_vo/vo/dataset/generate_datasets.py \
 --config_f ${POINTNAV_VO_ROOT}/configs/challenge_pointnav2021.local.rgbd.yaml \
 --train_scene_dir ./dataset/habitat_datasets/pointnav/gibson/v2/train/content  \
