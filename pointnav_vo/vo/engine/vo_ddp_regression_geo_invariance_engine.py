@@ -190,8 +190,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             WandbWriter(config=self.config, rank=rank)
         ) as writer:
             
-            if self.config.VO.TRAIN.mixed_precision:
-                scaler = GradScaler()
+            scaler = GradScaler(enabled=self.config.VO.TRAIN.mixed_precision)
+            self.scheduler = None
 
             for epoch in tqdm(range(start_epoch, self.config.VO.TRAIN.epochs), disable=True):
                 # start = time.time()
@@ -200,9 +200,19 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 train_iter = iter(self.train_loader)
                 batch_i = 0
 
+                # warm up learning rate
+                for act in self._act_list:
+                    if epoch <= self.config.VO.TRAIN.warm_up_steps:
+                        learning_rate = self.config.VO.TRAIN.lr * (epoch)/self.config.VO.TRAIN.warm_up_steps
+                        for i in range(len(self.optimizer[act].param_groups)):
+                            self.optimizer[act].param_groups[i]["lr"] = learning_rate
+                # step learning rate scheduler before gradient update since we initialize it after first epoch
+                if self.scheduler != None and self.config.VO.TRAIN.scheduler == 'cosine':
+                    self.scheduler.step()
+
                 with tqdm(total=nbatches, disable=False if rank == 0 else True) as pbar:
+                    
                     pbar.set_description(f'epoch {epoch} / {self.config.VO.TRAIN.epochs}')
-                # for batch in range(0, int(nbatches), 1):
                     
                     while True:
 
@@ -231,35 +241,18 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                             self.optimizer[act].zero_grad()
 
                         with (
-                            contextlib.suppress()
+                            # contextlib.suppress()
                             # # Causes mixed precision to crash
-                            # autograd.detect_anomaly()
-                            # if self.config.DEBUG
-                            # else contextlib.suppress()
+                            autograd.detect_anomaly()
+                            if self.config.DEBUG
+                            else contextlib.suppress()
                         ):
 
                             abs_diffs = {}
                             target_magnitudes = {}
                             relative_diffs = {}
 
-                            if self.config.VO.TRAIN.mixed_precision:
-                                with autocast():
-                                    (
-                                        loss,
-                                        cur_batch_size,
-                                        batch_pairs,
-                                        tmp_data_types,
-                                        infos_for_log,
-                                    ) = self._process_one_batch(
-                                        batch_data,
-                                        self.geo_invariance_types,
-                                        abs_diffs,
-                                        target_magnitudes,
-                                        relative_diffs,
-                                        train_flag=True,
-                                        rank=rank,
-                                    )
-                            else:
+                            with autocast(enabled=self.config.VO.TRAIN.mixed_precision):
                                 (
                                     loss,
                                     cur_batch_size,
@@ -284,24 +277,28 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                                 abs_diff_geo_inverse_pos,
                                 debug_abs_diff_geo_inverse_rot,
                                 debug_abs_diff_geo_inverse_pos,
+                                all_aux_depth_loss,
+                                all_inter_depth,
+                                all_pred_depth,
                             ) = infos_for_log
                             
-                            if self.config.VO.TRAIN.mixed_precision:
-                                scaler.scale(loss).backward()
+                            scaler.scale(loss).backward()
 
                             if self.config.VO.TRAIN.log_grad and rank == 0:
                                 self._log_grad(
                                     writer, global_step, grad_info_dict, d_type=d_type
                                 )
+                            
+                            # clip gradient norm
+                            if self.config.VO.TRAIN.max_clip_gradient_norm:
+                                for act in self._act_list:
+                                    scaler.unscale_(self.optimizer[act])
+                                    torch.nn.utils.clip_grad_norm_(self.vo_model[act].parameters(), self.config.VO.TRAIN.max_clip_gradient_norm)
 
                             for act in self._act_list:
-                                if self.config.VO.TRAIN.mixed_precision:
-                                    scaler.step(self.optimizer[act])
-                                else:
-                                    self.optimizer[act].step()
-                                    
-                            if self.config.VO.TRAIN.mixed_precision:
-                                scaler.update()
+                                scaler.step(self.optimizer[act])
+                            
+                            scaler.update()
 
                             if rank == 0:
                                 self._log_lr(writer, global_step)
@@ -316,11 +313,16 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
 
                                 if batch_i == nbatches - 1:
                                     self._save_dict(
-                                        {"train_objevtive": [loss.cpu().item()]},
+                                        {"train_objective": [loss.cpu().item()]},
                                         os.path.join(
                                             self.config.INFO_DIR, f"train_objective_info.p"
                                         ),
                                     )
+
+                                if self.config.VO.TRAIN.depth_aux_loss:
+                                    for i, act in enumerate(self._act_list):
+                                        log_name = f"train_{ACT_IDX2NAME[act]}"
+                                        self._aux_depth_log_func(writer, log_name, global_step, all_aux_depth_loss[i], all_inter_depth[i], all_pred_depth[i])
 
                                 for act in self._act_list:
                                     for i, d_type in enumerate(self.delta_types):
@@ -393,6 +395,18 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                                             abs_diff_geo_inverse_rot,
                                             abs_diff_geo_inverse_pos,
                                         )
+
+                # setup learning rate scheduler
+                if self.scheduler == None and self.config.VO.TRAIN.scheduler == 'cosine':
+                    T_max = nbatches * self.config.VO.TRAIN.epochs - self.config.VO.TRAIN.warm_up_steps
+                    print(T_max)
+                    for act in self._act_list:
+                        self.scheduler[act] = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer[act], T_max, eta_min=0, last_epoch=-1, verbose=False)
+                    
+                    if self.config.RESUME_TRAIN:
+                        resume_ckpt = torch.load(self.config.RESUME_STATE_FILE)        
+                        for act in self._act_list:
+                            self.scheduler[act].load_state_dict(resume_ckpt["scheduler_states"][act])
 
                 # NOTE: https://github.com/pytorch/pytorch/issues/1355#issuecomment-658660582
                 del train_iter
@@ -741,6 +755,11 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             all_actions = []
             all_data_types = []
 
+        # if self.config.VO.TRAIN.depth_aux_loss:
+        all_aux_depth_loss = []
+        all_inter_depth = []
+        all_pred_depth = []
+
         for act in self._act_list:
 
             if act == -1:
@@ -759,9 +778,10 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 top_down_view_pairs,
                 rank,
             )
-            pred_delta_states = self._compute_model_output(
-                actions[act_idxes, :], batch_pairs, act=act,
+            pred_delta_states, pred_depth = self._compute_model_output(
+                actions[act_idxes, :], batch_pairs, act=act, return_depth=bool(self.config.VO.TRAIN.depth_aux_loss)
             )
+
 
             if "inverse_joint_train" in cur_geo_invariance_types:
                 idx_map_for_reorder.extend(
@@ -776,6 +796,15 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 all_actions.append(actions[act_idxes])
                 all_data_types.append(data_types[act_idxes])
                 all_pred_deltas.append(pred_delta_states)
+
+            if self.config.VO.TRAIN.depth_aux_loss:
+                aux_depth_loss, inter_depth = self._compute_aux_depth_loss(batch_pairs, pred_depth)
+                
+                all_aux_depth_loss.append(aux_depth_loss)
+                all_inter_depth.append(inter_depth)
+                all_pred_depth.append(pred_depth)
+
+                loss += aux_depth_loss
 
             # fmt: off
             if train_flag:
@@ -978,6 +1007,9 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             abs_diff_geo_inverse_pos,
             debug_abs_diff_geo_inverse_rot,
             debug_abs_diff_geo_inverse_pos,
+            all_aux_depth_loss,
+            all_inter_depth,
+            all_pred_depth,
         )
 
         return loss, cur_batch_size, batch_pairs, tmp_data_types, infos_for_log
@@ -1062,17 +1094,31 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             )
         )
     
-    def _compute_model_output(self, actions, batch_pairs, act=-1):
+    def _compute_model_output(self, actions, batch_pairs, act=-1, return_depth=False):
         # [batch, 3], [delta_x, delta_z, delta_yaw]
-        if "act_embed" in self.config.VO.MODEL.name:
-            actions = torch.squeeze(actions, dim=1).to(
-                self.device, non_blocking=self._pin_memory_flag
-            )
-            pred_delta_states = self.vo_model[act](batch_pairs, actions)
-        else:
-            pred_delta_states = self.vo_model[act](batch_pairs)
+        
+        pred_depth = None
 
-        return pred_delta_states
+        if "transformer" in self.config.VO.MODEL.name:
+
+            if "act_embed" in self.config.VO.MODEL.name:
+                actions = torch.squeeze(actions, dim=1).to(
+                    self.device, non_blocking=self._pin_memory_flag
+                )
+                pred_delta_states, pred_depth = self.vo_model[act](batch_pairs, actions, return_depth=return_depth)
+            else:
+                pred_delta_states, pred_depth = self.vo_model[act](batch_pairs,  return_depth=return_depth)
+
+        else:
+            if "act_embed" in self.config.VO.MODEL.name:
+                actions = torch.squeeze(actions, dim=1).to(
+                    self.device, non_blocking=self._pin_memory_flag
+                )
+                pred_delta_states = self.vo_model[act](batch_pairs, actions)
+            else:
+                pred_delta_states = self.vo_model[act](batch_pairs)
+
+        return pred_delta_states, pred_depth
    
    ### Evaluation and Logging ###
 
@@ -1181,6 +1227,9 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                         abs_diff_geo_inverse_pos,
                         debug_abs_diff_geo_inverse_rot,
                         debug_abs_diff_geo_inverse_pos,
+                        all_aux_depth_loss,
+                        all_inter_depth,
+                        all_pred_depth,
                     ) = infos_for_log
 
                     if "inverse_joint_train" in eval_geo_invariance_types:
@@ -1457,6 +1506,18 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
 
         return loss_geo_inverse, abs_diff_geo_inverse_rot, abs_diff_geo_inverse_pos
 
+    def _compute_aux_depth_loss(self, batch_pairs, pred_depth):
+        ct = 10
+        depth_ct = torch.cat([torch.cat((pair[ct:-ct,ct:-ct,0], pair[ct:-ct,ct:-ct,1]),dim=0).float().unsqueeze(0)
+                    for pair in batch_pairs["depth"]], dim=0).unsqueeze(3)
+        inter_depth = torch.nn.functional.interpolate(depth_ct.permute(0,3,1,2), (10,10)).reshape(depth_ct.shape[0],-1)
+        # depth_round = torch.round(inter_depth*10)
+        criterion = torch.nn.MSELoss()
+
+        aux_depth_loss = self.config.VO.TRAIN.depth_aux_loss * criterion(pred_depth, inter_depth)
+
+        return aux_depth_loss, inter_depth
+
     def _log_lr(self, writer, global_step):
         for tmp_i, param_group in enumerate(
             self.optimizer[self._act_list[0]].param_groups
@@ -1569,7 +1630,33 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 dataformats="HW",
             )
 
+    def _aux_depth_log_func(
+        self, writer, split, global_step, aux_depth_loss, inter_depth, pred_depth,
+    ):
+
+        writer.add_image(
+                f"{split}_depth/ground_truth",
+                inter_depth.reshape(inter_depth.shape[0], 10, 10)[0].cpu(),
+                global_step,
+                dataformats="HW",
+            )
+        
+        writer.add_image(
+                f"{split}_depth/prediction",
+                inter_depth.reshape(pred_depth.shape[0], 10, 10)[0].cpu(),
+                global_step,
+                dataformats="HW",
+            )
+
+        writer.add_scalar(
+            f"{split}_depth/aux_depth_loss",
+            aux_depth_loss.cpu(),
+            global_step=global_step,
+        )
+
+
     def _save_ckpt(self, epoch):
+ 
         state = {
             "epoch": epoch,
             "config": self.config,
@@ -1581,6 +1668,9 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             "torch_cuda_rnd_state": torch.cuda.get_rng_state_all(),
         }
 
+        if self.scheduler != None and self.config.VO.TRAIN.scheduler == 'cosine':
+            state["scheduler_states"] = self.scheduler.state_dict()
+           
         try:
             torch.save(
                 state,

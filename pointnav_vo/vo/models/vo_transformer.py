@@ -17,6 +17,7 @@ from torchvision import transforms
 
 import timm
 import types
+import math
 
 @baseline_registry.register_vo_model(name="vo_transformer_act_embed")
 class VisualOdometryTransformerActEmbed(nn.Module):
@@ -40,6 +41,10 @@ class VisualOdometryTransformerActEmbed(nn.Module):
     ):
         super().__init__()
         
+        self.cls_action = cls_action
+
+        self.output_dim = output_dim
+
         self.feature_dimensions = dict({
             'small': 384,
             'base': 768,
@@ -117,7 +122,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         self.vit.embed = embed
         
         # overwrite forward functions to fit backbone and add custom action embedding
-        if pretrain_backbone == 'dino' and cls_action:
+        if pretrain_backbone == 'dino' and self.cls_action:
 
             def prepare_tokens(self, x, actions, EMBED_DIM):
                 B, nc, w, h = x.shape
@@ -143,9 +148,9 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
             self.vit.forward = types.MethodType(forward, self.vit)
 
-        elif pretrain_backbone == 'dino' and not cls_action:
+        elif pretrain_backbone == 'dino' and not self.cls_action:
 
-            def forward(self, x, actions, EMBED_DIM):
+            def forward(self, x):
                 x = self.prepare_tokens(x)
                 for blk in self.blocks:
                     x = blk(x)
@@ -154,38 +159,131 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
             self.vit.forward = types.MethodType(forward, self.vit)
 
-        elif cls_action:
+        elif self.cls_action:
 
-            def forward(self, x, actions, EMBED_DIM):
-                x = self.patch_embed(x)
+            def interpolate_pos_encoding(self, x, w, h):    
+                npatch = x.shape[1] - 1
+                N = self.pos_embed.shape[1] - 1
+                if npatch == N and w == h:
+                    return self.pos_embed
+                class_pos_embed = self.pos_embed[:, 0]
+                patch_pos_embed = self.pos_embed[:, 1:]
+                dim = x.shape[-1]
                 
+                w0 = w // self.patch_embed.patch_size[0]
+                h0 = h // self.patch_embed.patch_size[0]
+                # we add a small number to avoid floating point error in the interpolation
+                # see discussion at https://github.com/facebookresearch/dino/issues/8
+                w0, h0 = w0 + 0.1, h0 + 0.1
+                patch_pos_embed = nn.functional.interpolate(
+                    patch_pos_embed.reshape(1, int(math.sqrt(N)), int(math.sqrt(N)), dim).permute(0, 3, 1, 2),
+                    scale_factor=(w0 / math.sqrt(N), h0 / math.sqrt(N)),
+                    mode='bicubic',
+                )
+                assert int(w0) == patch_pos_embed.shape[-2] and int(h0) == patch_pos_embed.shape[-1]
+                patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
+                return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1)
+
+            self.vit.interpolate_pos_encoding = types.MethodType(interpolate_pos_encoding, self.vit)
+
+            def prepare_tokens(self, x, actions, EMBED_DIM):
+                B, nc, w, h = x.shape
+                x = self.patch_embed(x)
+
                 act_embed = self.embed(actions).reshape(x.shape[0], 1, EMBED_DIM)
                 cls_token = act_embed
-                x = torch.cat((cls_token, x), dim=1)
-                
-                x = self.pos_drop(x + self.pos_embed)
-                x = self.blocks(x)
-                x = self.norm(x)
 
+                x = torch.cat((cls_token, x), dim=1)
+
+                x = x + self.interpolate_pos_encoding(x, w, h)
+
+                return self.pos_drop(x)
+
+            self.vit.prepare_tokens = types.MethodType(prepare_tokens, self.vit)
+
+            def forward(self, x, actions, EMBED_DIM):
+                x = self.prepare_tokens(x, actions, EMBED_DIM)
+                for blk in self.blocks:
+                    x = blk(x)
+                x = self.norm(x)
                 return x[:, 0]
 
             self.vit.forward = types.MethodType(forward, self.vit)
+
+            def forward(self, x):
+                # B, C, H, W = x.shape
+                # _assert(H == self.img_size[0], f"Input image height ({H}) doesn't match model ({self.img_size[0]}).")
+                # _assert(W == self.img_size[1], f"Input image width ({W}) doesn't match model ({self.img_size[1]}).")
+                x = self.proj(x)
+                if self.flatten:
+                    x = x.flatten(2).transpose(1, 2)  # BCHW -> BNC
+                x = self.norm(x)
+                return x
+
+            self.vit.patch_embed.forward = types.MethodType(forward, self.vit.patch_embed)
 
         else:
 
-            def forward(self, x, actions, EMBED_DIM):
-                x = self.patch_embed(x)
-
-                cls_token = self.cls_token.expand(x.shape[0], -1, -1)
-                x = torch.cat((cls_token, x), dim=1)
+            def interpolate_pos_encoding(self, x, w, h):    
+                npatch = x.shape[1] - 1
+                N = self.pos_embed.shape[1] - 1
+                if npatch == N and w == h:
+                    return self.pos_embed
+                class_pos_embed = self.pos_embed[:, 0]
+                patch_pos_embed = self.pos_embed[:, 1:]
+                dim = x.shape[-1]
                 
-                x = self.pos_drop(x + self.pos_embed)
-                x = self.blocks(x)
-                x = self.norm(x)
+                w0 = w // self.patch_embed.patch_size[0]
+                h0 = h // self.patch_embed.patch_size[0]
+                # we add a small number to avoid floating point error in the interpolation
+                # see discussion at https://github.com/facebookresearch/dino/issues/8
+                w0, h0 = w0 + 0.1, h0 + 0.1
+                patch_pos_embed = nn.functional.interpolate(
+                    patch_pos_embed.reshape(1, int(math.sqrt(N)), int(math.sqrt(N)), dim).permute(0, 3, 1, 2),
+                    scale_factor=(w0 / math.sqrt(N), h0 / math.sqrt(N)),
+                    mode='bicubic',
+                )
+                assert int(w0) == patch_pos_embed.shape[-2] and int(h0) == patch_pos_embed.shape[-1]
+                patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
+                return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1)
+            
+            self.vit.interpolate_pos_encoding = types.MethodType(interpolate_pos_encoding, self.vit)
 
+            def prepare_tokens(self, x):
+                B, nc, w, h = x.shape
+                x = self.patch_embed(x)  # patch linear embedding
+
+                # add the [CLS] token to the embed patch tokens
+                cls_tokens = self.cls_token.expand(B, -1, -1)
+                x = torch.cat((cls_tokens, x), dim=1)
+
+                # add positional encoding to each token
+                x = x + self.interpolate_pos_encoding(x, w, h)
+
+                return self.pos_drop(x)
+
+            self.vit.prepare_tokens = types.MethodType(prepare_tokens, self.vit)
+
+            def forward(self, x):
+                x = self.prepare_tokens(x)
+                for blk in self.blocks:
+                    x = blk(x)
+                x = self.norm(x)
                 return x[:, 0]
 
             self.vit.forward = types.MethodType(forward, self.vit)
+
+            def forward(self, x):
+                # B, C, H, W = x.shape
+                # _assert(H == self.img_size[0], f"Input image height ({H}) doesn't match model ({self.img_size[0]}).")
+                # _assert(W == self.img_size[1], f"Input image width ({W}) doesn't match model ({self.img_size[1]}).")
+                x = self.proj(x)
+                if self.flatten:
+                    x = x.flatten(2).transpose(1, 2)  # BCHW -> BNC
+                x = self.norm(x)
+                return x
+
+            self.vit.patch_embed.forward = types.MethodType(forward, self.vit.patch_embed)
 
         if normalize_visual_inputs:
             self.running_mean_and_var = RunningMeanAndVar(3)
@@ -194,9 +292,14 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
         self.head = nn.Sequential(
             nn.Dropout(dropout_p), nn.Linear(self.EMBED_DIM, hidden_size), nn.GELU(),
-            nn.Dropout(dropout_p), nn.Linear(hidden_size, output_dim),
+            nn.Dropout(dropout_p), nn.Linear(hidden_size, self.output_dim),
         )
         
+        self.head_depth = nn.Sequential(
+            nn.Linear(self.EMBED_DIM, hidden_size), nn.GELU(),
+            nn.Linear(hidden_size, 100), nn.Sigmoid()
+        )
+
         # # as done by the authors
         # # maybe because R is othorgonal ?
         # nn.init.orthogonal_(self.head[-1].weight)
@@ -208,28 +311,43 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
         exit()
 
-    def forward(self, observation_pairs, actions):
+    def forward(self, observation_pairs, actions, return_depth=False):
 
         # split connected RGB from b,h,w,3 -> b,h*2,w,3 -> b,3,h*2,w
-        x = observation_pairs['rgb']
-        x = torch.cat((x[:,:,:,:x.shape[-1]//2], x[:,:,:,x.shape[-1]//2:]),dim=1)
 
-        # import torchvision
-        # for i, (x_i, a_i) in enumerate(zip(x, actions)):
-        #     torchvision.utils.save_image(x_i.permute(2,0,1), f'test_imgs/img_{i}_act_{a_i}.png', normalize=False)
-        #     torchvision.utils.save_image(x_i.permute(2,0,1) / 255.0 , f'test_imgs/img_norm_{i}_act_{a_i}.png', normalize=False)
+        if "rgb" in observation_pairs.keys():
+            
+            x = observation_pairs['rgb']
+            x = torch.cat((x[:,:,:,:x.shape[-1]//2], x[:,:,:,x.shape[-1]//2:]),dim=1)
 
-        # self.debug_img(x)
+            # import torchvision
+            # for i, (x_i, a_i) in enumerate(zip(x, actions)):
+            #     torchvision.utils.save_image(x_i.permute(2,0,1), f'test_imgs/img_{i}_act_{a_i}.png', normalize=False)
+            #     torchvision.utils.save_image(x_i.permute(2,0,1) / 255.0 , f'test_imgs/img_norm_{i}_act_{a_i}.png', normalize=False)
 
-        # normalize RGB
-        x = x.permute(0,3,1,2)
-        x = x / 255.0
-        x = F.interpolate(x, size=(384, 384))
+            # self.debug_img(x)
 
+            # normalize RGB
+            x = x.permute(0,3,1,2)
+            x = x / 255.0
+
+        else:
+            x = torch.zeros(len(actions), 3, 336, 192).to(actions.device)
+
+        x = F.interpolate(x, size=(336, 192))
         # normalize visual inputs w/ running mean
         x = self.running_mean_and_var(x)
 
-        features = self.vit.forward(x, actions, self.EMBED_DIM)
+        if self.cls_action:
+            features = self.vit.forward(x, actions, self.EMBED_DIM)
+        else:
+            features = self.vit.forward(x)
+
         output = self.head(features)
 
-        return output
+        if return_depth:
+            output_depth = self.head_depth(features)
+        else:
+            output_depth = None
+
+        return output, output_depth
