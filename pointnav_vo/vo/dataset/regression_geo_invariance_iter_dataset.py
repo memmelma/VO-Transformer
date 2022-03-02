@@ -201,7 +201,12 @@ class StatePairRegressionDataset(BaseRegressionDataset):
         if self._collision == "-1":
             final_valid_idxes = valid_act_idxes
         else:
-            raise ValueError
+            no_collision_idxes = np.where(
+                    h5_f[chunk_k]["collisions"][()] == 0
+                )[0]
+            intersect_idxes = np.intersect1d(valid_act_idxes, no_collision_idxes)
+            final_valid_idxes = intersect_idxes
+            # raise ValueError
 
         return list(final_valid_idxes), transform_idxes
 
@@ -524,7 +529,8 @@ class StatePairRegressionDataset(BaseRegressionDataset):
                 self._prev_global_rotations = f[chunk_k]["prev_global_rotations"][()]
                 self._cur_global_positions = f[chunk_k]["cur_global_positions"][()]
                 self._cur_global_rotations = f[chunk_k]["cur_global_rotations"][()]
-
+                
+                self._collisions = f[chunk_k]["collisions"][()]
             # tmp_interval = time.time() - tmp_start
             # logger.info(f"... worker {worker_id} done ({tmp_interval:.2f}s).")
 
