@@ -32,7 +32,7 @@ class VOTransformerRegressionGeometricInvarianceEngine(VODDPRegressionGeometricI
             for act in self._act_list:
                 if not self.config.VO.MODEL.train_backbone:
                     # freeze backbone
-                    for p in self.vo_model[act].backbone.parameters():
+                    for p in self.vo_model[act].vit.parameters():
                         p.requires_grad = False
 
                 self.optimizer[act] = self.optimizer_dict[self.config.VO.TRAIN.optim](
