@@ -45,7 +45,10 @@ VO:
     log_grad: False
     log_grad_interval: 200
     optim: "adamw"
+    warm_up_steps: 10 # ~5-10% steps, e.g. 5 warmup, 100 train
     mixed_precision: True
+    max_clip_gradient_norm: 0.0 # vit: 1.0, off: 0.0
+    depth_aux_loss: 0.0 # requires visual_type: ["depth"]
     
     collision: "-1"   # whether to train w/ or w/o collision data. -1 means we train on all data no matter whether there is collsion or not.
 
@@ -53,7 +56,7 @@ VO:
     # - -1: unified model for all actions
     # - 1, 2, 3: separate model for specific action
     # - [2, 3]: jointly train turn_left and turn_right action
-    action_type: -1
+    action_type: 1
   
   EVAL:
     save_pred: True
@@ -67,7 +70,7 @@ VO:
     #  vo_cnn_act_embed, vo_cnn_wider_act_embed,
     #  vo_cnn_rgb_d_dd, vo_cnn_rgb_d_top_down, vo_cnn_rgb_dd_top_down, vo_cnn_d_dd_top_down,
     #  vo_cnn_rgb_d_dd_top_down]
-    name: "vo_cnn_rgb_d_dd_top_down"
+    name: "vo_cnn_act_embed"
     visual_backbone: "resnet50" # every timm resnet OR 'base18' OR 'base50' OR 'base101'
     train_backbone: True # True: also train the ViT encoder, False: freeze
     pretrain_backbone: 'in21k' # 'in21k', 'None'
@@ -95,7 +98,7 @@ VO:
   
   GEOMETRY:
     loss_inv_weight: 1
-    invariance_types: ['inverse_joint_train'] # ["inverse_data_augment_only"]  # choices: ["inverse_data_augment_only", "inverse_joint_train"]
+    invariance_types: [] # ["inverse_data_augment_only"]  # choices: ["inverse_data_augment_only", "inverse_joint_train"]
 
   DATASET:
     # TRAIN_WITH_NOISE: /scratch/memmel/dataset/train_2048.h5

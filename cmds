@@ -1,0 +1,14 @@
+sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/vo_pointnav_vit.yaml
+
+
+runjob 2 'sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/cnn_baselines/vo_pointnav_cnn_fwd_in21k.yaml'
+runjob 2 'sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/cnn_baselines/vo_pointnav_cnn_fwd.yaml'
+runjob 2 'sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/cnn_baselines/vo_pointnav_cnn_tl_in21k.yaml'
+runjob 2 'sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/cnn_baselines/vo_pointnav_cnn_tl.yaml'
+runjob 2 'sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/cnn_baselines/vo_pointnav_cnn_tr_in21k.yaml'
+runjob 2 'sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/cnn_baselines/vo_pointnav_cnn_tr.yaml'
+
+runjob 2 'sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/cnn_baselines/vo_pointnav_cnn_act_all_in21k.yaml'
+runjob 2 'sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/cnn_baselines/vo_pointnav_cnn_act_all.yaml'
+runjob 2 'sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/cnn_baselines/vo_pointnav_cnn_act_rgb_in21k.yaml'
+runjob 2 'sh start_vo.sh --n_gpus 2 --config-yaml /datasets/home/memmel/PointNav-VO/configs/vo/cnn_baselines/vo_pointnav_cnn_act_rgb.yaml'
