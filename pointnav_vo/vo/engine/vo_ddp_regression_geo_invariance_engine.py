@@ -1046,6 +1046,16 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 omnidata_model_path=self.config.VO.MODEL.omnidata_model_path,
             )
 
+            parameter_count = sum(
+                    param.numel()
+                    for param in self.vo_model[act].parameters()
+                    if param.requires_grad
+            )
+
+            self._config.defrost()
+            self._config[f'parameter_count_act_{act}'] = parameter_count
+            self._config.freeze()
+
             self.vo_model[act].to(self.device)
 
         if self._run_type == "train":

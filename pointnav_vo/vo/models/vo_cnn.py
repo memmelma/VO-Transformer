@@ -89,7 +89,7 @@ class ResNetEncoder(nn.Module):
             'resnet200': []
         })
 
-        assert pretrain_backbone in self.supported_pretraining[backbone] or pretrain_backbone == 'None', \
+        assert pretrain_backbone in self.supported_pretraining.keys() or pretrain_backbone == 'None', \
         f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {self.supported_pretraining[backbone]}.'
 
         # paper implementation
@@ -128,7 +128,6 @@ class ResNetEncoder(nn.Module):
             final_spatial_h,
             final_spatial_w,
         )
-        
 
     def layer_init(self):
         for layer in self.modules():
@@ -200,7 +199,6 @@ class ResNetEncoder(nn.Module):
         # [prev_rgb, prev_depth, prev_discretized_depth, prev_top_down_view,
         #  cur_rgb, cur_depth, cur_discretized_depth, cur_top_down_view]
         cnn_input = [j for i in list(zip(*cnn_input)) for j in i]
-
         x = torch.cat(cnn_input, dim=1)
 
         x = self.running_mean_and_var(x)

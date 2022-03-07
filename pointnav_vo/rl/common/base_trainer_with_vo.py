@@ -302,9 +302,9 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                     self.vo_model[tmp_key].eval()
                     if "act_embed" in self.config.VO.REGRESS_MODEL.name:
                         actions = torch.Tensor([act]).long().to(rgb_pair.device)
-                        tmp_deltas = self.vo_model[tmp_key](obs_pairs, actions)
+                        tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs, actions)
                     else:
-                        tmp_deltas = self.vo_model[tmp_key](obs_pairs)
+                        tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs)
                     local_delta_states = tmp_deltas.cpu().numpy()[0, :]
                     local_delta_states = list(local_delta_states)
                     local_delta_states_std = [0, 0, 0]
@@ -312,8 +312,9 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                     self.vo_model[tmp_key].train()
                     tmp_all_local_delta_states = []
                     for tmp_i in range(self.config.VO.REGRESS_MODEL.rnd_mode_n):
+                        tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs).cpu().numpy()[0, :]
                         tmp_deltas = (
-                            self.vo_model[tmp_key](obs_pairs).cpu().numpy()[0, :]
+                            tmp_deltas
                         )
                         tmp_all_local_delta_states.append(tmp_deltas)
                     local_delta_states = list(
