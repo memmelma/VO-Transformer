@@ -26,7 +26,9 @@ STOP = 0
 MOVE_FORWARD = 1
 TURN_LEFT = 2
 TURN_RIGHT = 3
-ACTIONS = {0: "STOP", 1: "MOVE_FORWARD", 2: "TURN_LEFT", 3: "TURN_RIGHT"}
+TURN_LEFT_LESS = 4
+TURN_RIGHT_LESS = 5
+ACTIONS = {0: "STOP", 1: "MOVE_FORWARD", 2: "TURN_LEFT", 3: "TURN_RIGHT", 4: "TURN_LEFT_LESS", 5: "TURN_RIGHT_LESS"}
 
 
 def set_up_vars(vis_size_w=256, vis_size_h=256):
@@ -223,7 +225,7 @@ def generate_one_dataset(
 
     cnt = 0
     episode_cnt = 0
-    action_cnt = {MOVE_FORWARD: 0, TURN_LEFT: 0, TURN_RIGHT: 0}
+    action_cnt = {MOVE_FORWARD: 0, TURN_LEFT: 0, TURN_RIGHT: 0, TURN_LEFT_LESS: 0, TURN_RIGHT_LESS: 0,}
     collision_cnt = 0
 
     chunk_cnt = 0
@@ -538,6 +540,8 @@ def generate_datasets(
 
         if act_type == -1:
             valid_act = [MOVE_FORWARD, TURN_LEFT, TURN_RIGHT]
+        elif act_type == -2:
+            valid_act = [MOVE_FORWARD, TURN_LEFT, TURN_RIGHT, TURN_LEFT_LESS, TURN_RIGHT_LESS]
         elif act_type == 1:
             valid_act = [MOVE_FORWARD]
         elif act_type == 2:
