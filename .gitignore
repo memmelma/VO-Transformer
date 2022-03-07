@@ -137,8 +137,8 @@ dataset/
 wandb/
 
 # habitat
-habitat-sim/
-habitat-lab/
+# habitat-sim/
+# habitat-lab/
 
 # logs
 train_log/
