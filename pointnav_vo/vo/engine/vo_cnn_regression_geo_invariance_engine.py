@@ -18,7 +18,7 @@ class VOCNNRegressionGeometricInvarianceEngine(VODDPRegressionGeometricInvarianc
         self.optimizer = {}
         self.optimizer_dict = {'adam': optim.Adam, 'adamw': optim.AdamW}
 
-        if self.config.VO.MODEL.pretrain_backbone != 'None' and self.config.VO.MODEL.train_backbone:
+        if (self.config.VO.MODEL.pretrain_backbone != 'None') and (self.config.VO.MODEL.train_backbone) and ('act_embed' not in self.config.VO.MODEL.name):
             for act in self._act_list:
                 self.optimizer[act] = self.optimizer_dict[self.config.VO.TRAIN.optim](
                     [{'params': self.vo_model[act].visual_encoder.parameters(), 'lr': self.config.VO.TRAIN.backbone_lr},
@@ -32,7 +32,7 @@ class VOCNNRegressionGeometricInvarianceEngine(VODDPRegressionGeometricInvarianc
             for act in self._act_list:
                 if not self.config.VO.MODEL.train_backbone:
                     # freeze backbone
-                    for p in self.vo_model[act].backbone.parameters():
+                    for p in self.vo_model[act].visual_encoder.parameters():
                         p.requires_grad = False
 
                 self.optimizer[act] = self.optimizer_dict[self.config.VO.TRAIN.optim](

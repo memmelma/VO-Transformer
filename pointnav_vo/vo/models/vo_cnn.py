@@ -89,7 +89,7 @@ class ResNetEncoder(nn.Module):
             'resnet200': []
         })
 
-        assert pretrain_backbone in self.supported_pretraining.keys() or pretrain_backbone == 'None', \
+        assert pretrain_backbone in self.supported_pretraining[backbone] or pretrain_backbone == 'None', \
         f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {self.supported_pretraining[backbone]}.'
 
         # paper implementation

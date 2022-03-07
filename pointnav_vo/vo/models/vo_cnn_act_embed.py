@@ -24,6 +24,7 @@ class VisualOdometryCNNActEmbed(nn.Module):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -43,37 +44,38 @@ class VisualOdometryCNNActEmbed(nn.Module):
             ngroups=resnet_baseplanes // 2,
             # make_backbone=getattr(resnet, backbone),
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             discretized_depth_channels=discretized_depth_channels,
             after_compression_flat_size=after_compression_flat_size,
         )
 
-        # self.flatten = Flatten()
+        self.flatten = Flatten()
 
-        # self.hidden_generator = nn.Sequential(
-        #     nn.Dropout(dropout_p),
-        #     nn.Linear(
-        #         np.prod(self.visual_encoder.output_shape) + EMBED_DIM, hidden_size
-        #     ),
-        #     nn.ReLU(True),
-        # )
-
-        # self.output_head = nn.Sequential(
-        #     nn.Dropout(dropout_p), nn.Linear(hidden_size, output_dim),
-        # )
-
-        # nn.init.orthogonal_(self.output_head[1].weight)
-        # nn.init.constant_(self.output_head[1].bias, 0)
-        
-        self.head = nn.Sequential(
-            Flatten(),
+        self.hidden_generator = nn.Sequential(
             nn.Dropout(dropout_p),
-            nn.Linear(np.prod(self.visual_encoder.output_shape) + EMBED_DIM, hidden_size),
+            nn.Linear(
+                np.prod(self.visual_encoder.output_shape) + EMBED_DIM, hidden_size
+            ),
             nn.ReLU(True),
+        )
+
+        self.output_head = nn.Sequential(
             nn.Dropout(dropout_p), nn.Linear(hidden_size, output_dim),
         )
-        nn.init.orthogonal_(self.head[-1].weight)
-        nn.init.constant_(self.head[-1].bias, 0)
+
+        nn.init.orthogonal_(self.output_head[1].weight)
+        nn.init.constant_(self.output_head[1].bias, 0)
+        
+        # self.head = nn.Sequential(
+        #     Flatten(),
+        #     nn.Dropout(dropout_p),
+        #     nn.Linear(np.prod(self.visual_encoder.output_shape) + EMBED_DIM, hidden_size),
+        #     nn.ReLU(True),
+        #     nn.Dropout(dropout_p), nn.Linear(hidden_size, output_dim),
+        # )
+        # nn.init.orthogonal_(self.head[-1].weight)
+        # nn.init.constant_(self.head[-1].bias, 0)
         
 
     def forward(self, observation_pairs, actions):
@@ -99,6 +101,7 @@ class VisualOdometryCNNWiderActEmbed(VisualOdometryCNNActEmbed):
         hidden_size=512,
         resnet_baseplanes=32,
         backbone="resnet18",
+        pretrain_backbone='None',
         normalize_visual_inputs=False,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -120,6 +123,7 @@ class VisualOdometryCNNWiderActEmbed(VisualOdometryCNNActEmbed):
             hidden_size=hidden_size,
             resnet_baseplanes=resnet_baseplanes,
             backbone=backbone,
+            pretrain_backbone=pretrain_backbone,
             normalize_visual_inputs=normalize_visual_inputs,
             output_dim=output_dim,
             dropout_p=dropout_p,
