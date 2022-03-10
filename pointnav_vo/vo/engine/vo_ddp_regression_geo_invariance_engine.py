@@ -319,10 +319,11 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                                         ),
                                     )
 
-                                if self.config.VO.TRAIN.depth_aux_loss:
-                                    for i, act in enumerate(self._act_list):
-                                        log_name = f"train_{ACT_IDX2NAME[act]}"
-                                        self._aux_depth_log_func(writer, log_name, global_step, all_aux_depth_loss[i], all_inter_depth[i], all_pred_depth[i])
+                                for i, act in enumerate(self._act_list):
+                                    log_name = f"train_{ACT_IDX2NAME[act]}"
+                                    self._aux_depth_log_func(writer, log_name, global_step, all_aux_depth_loss[i])
+                                    if self.config.VO.TRAIN.depth_aux_loss:
+                                        self._pred_depth_log_func(writer, log_name, global_step, all_inter_depth[i], all_pred_depth[i])
 
                                 for act in self._act_list:
                                     for i, d_type in enumerate(self.delta_types):
@@ -592,7 +593,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 # rgb from dataloader has type uint8, we need to change it to FloatTensor
                 batch_pairs["rgb"] = torch.cat(
                     [
-                        _.float().to(self.device, non_blocking=self._pin_memory_flag)
+                        _.float().to(self.device, non_blocking=self._pin_memory_flag).contiguous()
                         for _ in rgb_pairs
                     ],
                     dim=0,
@@ -600,7 +601,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             if "depth" in self._observation_space:
                 batch_pairs["depth"] = torch.cat(
                     [
-                        _.to(self.device, non_blocking=self._pin_memory_flag)
+                        _.to(self.device, non_blocking=self._pin_memory_flag).contiguous()
                         for _ in depth_pairs
                     ],
                     dim=0,
@@ -609,7 +610,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 # rgb from dataloader has type uint8, we need to change it to FloatTensor
                 batch_pairs["discretized_depth"] = torch.cat(
                     [
-                        _.float().to(self.device, non_blocking=self._pin_memory_flag)
+                        _.float().to(self.device, non_blocking=self._pin_memory_flag).contiguous()
                         for _ in discretized_depth_pairs
                     ],
                     dim=0,
@@ -617,7 +618,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             if "top_down_view" in self._observation_space:
                 batch_pairs["top_down_view"] = torch.cat(
                     [
-                        _.to(self.device, non_blocking=self._pin_memory_flag)
+                        _.to(self.device, non_blocking=self._pin_memory_flag).contiguous()
                         for _ in top_down_view_pairs
                     ],
                     dim=0,
@@ -805,6 +806,10 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 all_pred_depth.append(pred_depth)
 
                 loss += aux_depth_loss
+                if self.config.DEBUG:
+                    print('aux_depth_loss', aux_depth_loss)
+            else:
+                all_aux_depth_loss.append(torch.zeros(1))
 
             # fmt: off
             if train_flag:
@@ -882,6 +887,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                     )
 
                     loss += d_loss
+                    if self.config.DEBUG:
+                        print('d_loss I', d_loss)
 
                 else:
                     tmp_data_types = [CUR_REL_TO_PREV]
@@ -954,6 +961,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                         )
 
                         loss += d_loss
+                        if self.config.DEBUG:
+                            print('d_loss II', d_loss)
 
         if "inverse_joint_train" in cur_geo_invariance_types:
             all_pred_deltas = torch.cat(all_pred_deltas, dim=0)
@@ -995,6 +1004,9 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 all_data_types[valid_geo_inv_idxes, :],
             )
             loss += self.config.VO.GEOMETRY.loss_inv_weight * loss_geo_inverse
+            if self.config.DEBUG:
+                print('self.config.VO.GEOMETRY.loss_inv_weight * loss_geo_inverse', self.config.VO.GEOMETRY.loss_inv_weight * loss_geo_inverse)
+
         else:
             abs_diff_geo_inverse_rot = None
             abs_diff_geo_inverse_pos = None
@@ -1297,6 +1309,12 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                         total_loss / total_size,
                         global_step=epoch,
                     )
+
+                    for i, act in enumerate(self._act_list):
+                        log_name = f"{split_name}_{ACT_IDX2NAME[act]}"
+                        self._aux_depth_log_func(writer, log_name, epoch, all_aux_depth_loss[i])
+                        if self.config.VO.TRAIN.depth_aux_loss:
+                            self._pred_depth_log_func(writer, log_name, epoch, all_inter_depth[i], all_pred_depth[i])
 
                     for act in self._act_list:
                         for d_type in self.delta_types:
@@ -1641,7 +1659,17 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             )
 
     def _aux_depth_log_func(
-        self, writer, split, global_step, aux_depth_loss, inter_depth, pred_depth,
+        self, writer, split, global_step, aux_depth_loss,
+    ):
+
+        writer.add_scalar(
+            f"{split}_depth/aux_depth_loss",
+            aux_depth_loss.cpu(),
+            global_step=global_step,
+        )
+
+    def _pred_depth_log_func(
+        self, writer, split, global_step, inter_depth, pred_depth,
     ):
 
         writer.add_image(
@@ -1657,13 +1685,6 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 global_step,
                 dataformats="HW",
             )
-
-        writer.add_scalar(
-            f"{split}_depth/aux_depth_loss",
-            aux_depth_loss.cpu(),
-            global_step=global_step,
-        )
-
 
     def _save_ckpt(self, epoch):
  

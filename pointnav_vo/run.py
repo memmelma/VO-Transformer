@@ -103,6 +103,10 @@ def run_exp(
     else:
         pass
 
+    config.defrost()
+    config.exp_config = exp_config
+    config.freeze()
+
     if task_type == "rl":
         rgb_noise = "NOISE_MODEL" in config.TASK_CONFIG.SIMULATOR.RGB_SENSOR
         depth_noise = "NOISE_MODEL" in config.TASK_CONFIG.SIMULATOR.DEPTH_SENSOR
