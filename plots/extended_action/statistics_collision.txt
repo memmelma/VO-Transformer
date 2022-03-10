@@ -1,0 +1,9 @@
+mean [nan, nan, nan]
+std [nan, nan, nan]
+samples ALL 0
+samples STOP 0
+samples MOVE_FORWARD 141683
+samples TURN_LEFT 26743
+samples TURN_RIGHT 26883
+samples TURN_LEFT_LESS 27937
+samples TURN_RIGHT_LESS 26754
