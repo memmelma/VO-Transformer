@@ -56,7 +56,7 @@ VO:
     # - -1: unified model for all actions
     # - 1, 2, 3: separate model for specific action
     # - [2, 3]: jointly train turn_left and turn_right action
-    action_type: 1
+    action_type: -1
   
   EVAL:
     save_pred: True
