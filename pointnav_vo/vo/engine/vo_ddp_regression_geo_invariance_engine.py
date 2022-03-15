@@ -408,6 +408,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                         resume_ckpt = torch.load(self.config.RESUME_STATE_FILE)        
                         for act in self._act_list:
                             self.scheduler[act].load_state_dict(resume_ckpt["scheduler_states"][act])
+                            self.optimizer[act].load_state_dict(resume_ckpt["optim_states"][act])
 
                 # NOTE: https://github.com/pytorch/pytorch/issues/1355#issuecomment-658660582
                 del train_iter
@@ -1067,6 +1068,22 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             self._config.defrost()
             self._config[f'parameter_count_act_{act}'] = parameter_count
             self._config.freeze()
+
+            # # update config with parameter count
+            # run_name = 'vit_in21k_act'
+            # import wandb
+            # api = wandb.Api()
+            # runs = api.runs("vo")
+            # for run in runs:
+            #     if run.name == run_name:
+            #         config = run.config['config']
+            #         config[f"parameter_count_act_{config['VO']['TRAIN']['action_type']}"] = parameter_count
+            #         config[f"parameter_count"] = parameter_count
+            #         run.update()
+            #         break
+
+            # print(parameter_count)
+            # exit()
 
             self.vo_model[act].to(self.device)
 

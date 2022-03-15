@@ -6,9 +6,9 @@ ENGINE_NAME: "efficient_ddppo"
 ENV_NAME: "NavRLEnv"
 SENSORS: ["DEPTH_SENSOR", "RGB_SENSOR"]
 NUM_UPDATES: 5000000
-NUM_PROCESSES: 16
+NUM_PROCESSES: 3 # 16
 SIMULATOR_GPU_ID: 0
-TORCH_GPU_ID: 1
+TORCH_GPU_ID: 0 # 1
 
 # logging settings
 LOG_DIR: "train_log/rl/vit/"
@@ -105,27 +105,27 @@ VO:
   VIS_SIZE_H: 192
 
   REGRESS_MODEL:
-    name: "vo_transformer_act_embed"
-    visual_backbone: "small" # 'small', 'base', 'large', 'hybrid'
+    name: "vo_cnn_rgb_d_dd_top_down"
+    visual_backbone: "resnet50" # 'small', 'base', 'large', 'hybrid'
     train_backbone: True # True: also train the ViT encoder, False: freeze
-    pretrain_backbone: 'in21k' # 'in21k', 'dino' (in1k), 'omnidata', 'None'
+    pretrain_backbone: 'None' # 'in21k', 'dino' (in1k), 'omnidata', 'None'
     omnidata_model_path: 'dpt/pretrained_models'
-    cls_action: True
+    cls_action: False
     hidden_size: 512
-    visual_type: ["rgb"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    discretize_depth: "none" # choices: ['none', 'hard']
-    discretized_depth_channels: 0
-    dropout_p: 0.
+    visual_type: ["rgb", "depth", "discretized_depth", "top_down_view"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
+    discretize_depth: "hard" # choices: ['none', 'hard']
+    discretized_depth_channels: 10
+    dropout_p: 0.2
 
     regress_type: "unified_act"   # choices: ["unified_act", "sep_act"]
     mode: "det"  # choices: ["rnd", "det"]
     rnd_mode_n: 10
     pretrained: True
-    pretrained_type: "rgb_inv_joint"
+    pretrained_type: "rgb_d_dd_top_down_inv"
     all_pretrained_ckpt: {
-      "rgb_inv_joint": {
-        "all": "train_log/vit/seed_100-vo-noise_1-train-rgb-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-small-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_64-lr_0.0002-w_de_0.0-20220302_205716413920/checkpoints/ckpt_epoch_140.pth",
-        },
+      "rgb_d_dd_top_down_inv": {
+        "all": "train_log/cnn/seed_100-vo-noise_1-train-rgb_d_dd_proj-dd_hard_10-m_cen_1-act_1-model_vo_cnn_act_embed-resnet50-geo__inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0.2-e_150-b_256-lr_0.0002-w_de_0.0-20220310_182448085373/checkpoints/ckpt_epoch_140.pth",
+      },
     }
 
     # # choices:

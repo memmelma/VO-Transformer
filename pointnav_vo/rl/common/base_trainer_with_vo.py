@@ -304,7 +304,7 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                         actions = torch.Tensor([act]).long().to(rgb_pair.device)
                         tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs, actions)
                     else:
-                        tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs)
+                        tmp_deltas = self.vo_model[tmp_key](obs_pairs)
                     local_delta_states = tmp_deltas.cpu().numpy()[0, :]
                     local_delta_states = list(local_delta_states)
                     local_delta_states_std = [0, 0, 0]

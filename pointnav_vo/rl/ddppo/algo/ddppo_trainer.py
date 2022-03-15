@@ -269,6 +269,11 @@ class DDPPOTrainer(PPOTrainer):
                 }
             )
             with torch.no_grad():
+                # apparently batch is on cpu and the weights of self._encoder are on cuda
+                # still doesn't work
+                for key in batch.keys():
+                    batch[key] = batch[key].to(self.device)
+
                 batch["visual_features"] = self._encoder(batch)
 
         rollouts = RolloutStorage(

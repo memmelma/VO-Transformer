@@ -328,13 +328,14 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             # self.debug_img(x)
 
             # normalize RGB
-            x = x.permute(0,3,1,2)
+            x = x.permute(0,3,1,2).contiguous()
             x = x / 255.0
 
         else:
             x = torch.zeros(len(actions), 3, 336, 192).to(actions.device)
 
         x = F.interpolate(x, size=(336, 192))
+       
         # normalize visual inputs w/ running mean
         x = self.running_mean_and_var(x)
 
