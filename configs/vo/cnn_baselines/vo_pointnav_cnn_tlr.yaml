@@ -33,12 +33,12 @@ VO:
   TRAIN:
     # lr: 2.5e-4 
     # backbone_lr: 1.5e-4 
-    lr: 2.e-4
-    backbone_lr: 2.e-4
+    lr: 1.e-4
+    backbone_lr: 1.e-4
     weight_decay: 0.0 # we do not use weight decay in our experiments
     scheduler: "none"
     eps: 1.0e-8
-    batch_size: 256
+    batch_size: 224 # 256 # 128 w/o mixed precision
     epochs: 150
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
@@ -89,8 +89,8 @@ VO:
     pretrained: True
     pretrained_ckpt: {
       # "forward": "ckpt_forward.pth",
-      # "left": "act_left.pth",
-      # "right": "act_right.pth",
+        "left": "train_log/cnn/seed_100-vo-noise_1-train-rgb_d_dd_proj-dd_hard_10-m_cen_1-act_2-model_vo_cnn_rgb_d_dd_top_down-resnet50-geo_inv_aug_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0.2-e_150-b_256-lr_0.0002-w_de_0.0-20220310_182410420384/checkpoints/ckpt_epoch_140.pth",
+        "right": "train_log/cnn/seed_100-vo-noise_1-train-rgb_d_dd_proj-dd_hard_10-m_cen_1-act_3-model_vo_cnn_rgb_d_dd_top_down-resnet50-geo_inv_aug_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0.2-e_150-b_256-lr_0.0002-w_de_0.0-20220310_182439129620/checkpoints/ckpt_epoch_140.pth",
     }
 
   REGRESSION:

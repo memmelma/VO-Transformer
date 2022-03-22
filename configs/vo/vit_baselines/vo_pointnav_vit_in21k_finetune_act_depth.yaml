@@ -49,7 +49,7 @@ VO:
     warm_up_steps: 10 # ~5-10% steps, e.g. 5 warmup, 100 train
     mixed_precision: True
     max_clip_gradient_norm: 0.0 # vit: 1.0, off: 0.0
-    depth_aux_loss: 1.0 # requires visual_type: ["depth"]
+    depth_aux_loss: 0.0 # requires visual_type: ["depth"]
     
     collision: "-1"   # whether to train w/ or w/o collision data. -1 means we train on all data no matter whether there is collsion or not.
 
@@ -81,7 +81,7 @@ VO:
     pretrain_backbone: 'in21k'
     cls_action: True
     # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    visual_type: ["rgb", "depth"]
+    visual_type: ["depth"]
 
     hidden_size: 512
     omnidata_model_path: 'dpt/pretrained_models'
