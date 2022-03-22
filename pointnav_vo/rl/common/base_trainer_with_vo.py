@@ -113,9 +113,12 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                         raise ValueError
 
             if (
-                "discretize_depth" in self.config.VO.REGRESS_MODEL.name
-                or "dd" in self.config.VO.REGRESS_MODEL.name
+                True
+                # "discretize_depth" in self.config.VO.REGRESS_MODEL.name
+                # or "dd" in self.config.VO.REGRESS_MODEL.name
+                # or "discretize_depth" in self.config.VO.REGRESS_MODEL.visual_type
             ):
+
                 if self.config.VO.REGRESS_MODEL.discretize_depth in ["hard"]:
                     self._discretized_depth_end_vals = []
                     for i in np.arange(
@@ -225,8 +228,11 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
 
         if self.config.VO.VO_TYPE == "REGRESS":
             if (
-                "discretize_depth" in self.config.VO.REGRESS_MODEL.name
-                or "dd" in self.config.VO.REGRESS_MODEL.name
+                True
+                # "discretize_depth" in self.config.VO.REGRESS_MODEL.name
+                # or "dd" in self.config.VO.REGRESS_MODEL.name
+                # or "discretize_depth" in self.config.VO.REGRESS_MODEL.visual_type
+
             ):
 
                 # process depth discretization
@@ -244,45 +250,47 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
 
                 obs_pairs["discretized_depth"] = discretized_depth_pair
 
-            # REMOVED CHECK
-            # if "top_down" in self.config.VO.REGRESS_MODEL.name:
+            if (
+                "top_down" in self.config.VO.REGRESS_MODEL.name
+                or "top_down_view" in self.config.VO.REGRESS_MODEL.visual_type
+                ):
 
-            # process top-down projection
-            if isinstance(
-                self._top_down_view_generator,
-                NormalizedDepth2TopDownViewHabitatTorch,
-            ):
-                prev_top_down_view = self._top_down_view_generator.gen_top_down_view(
-                    depth_pair[0, :, :, 0].unsqueeze(-1)
-                )
-                cur_top_down_view = self._top_down_view_generator.gen_top_down_view(
-                    depth_pair[0, :, :, 1].unsqueeze(-1)
-                )
-                top_down_view_pair = torch.cat(
-                    (prev_top_down_view, cur_top_down_view), dim=2,
-                ).unsqueeze(0)
-            elif isinstance(
-                self._top_down_view_generator, NormalizedDepth2TopDownViewHabitat
-            ):
-                prev_top_down_view = self._top_down_view_generator.gen_top_down_view(
-                    depth_pair[0, :, :, 0, np.newaxis].cpu().numpy()
-                )
-                cur_top_down_view = self._top_down_view_generator.gen_top_down_view(
-                    depth_pair[0, :, :, 1, np.newaxis].cpu().numpy()
-                )
-                top_down_view_pair = (
-                    torch.FloatTensor(
-                        np.concatenate(
-                            [prev_top_down_view, cur_top_down_view], axis=2
-                        )
+                # process top-down projection
+                if isinstance(
+                    self._top_down_view_generator,
+                    NormalizedDepth2TopDownViewHabitatTorch,
+                ):
+                    prev_top_down_view = self._top_down_view_generator.gen_top_down_view(
+                        depth_pair[0, :, :, 0].unsqueeze(-1)
                     )
-                    .to(depth_pair.device)
-                    .unsqueeze(0)
-                )
-            else:
-                raise ValueError
+                    cur_top_down_view = self._top_down_view_generator.gen_top_down_view(
+                        depth_pair[0, :, :, 1].unsqueeze(-1)
+                    )
+                    top_down_view_pair = torch.cat(
+                        (prev_top_down_view, cur_top_down_view), dim=2,
+                    ).unsqueeze(0)
+                elif isinstance(
+                    self._top_down_view_generator, NormalizedDepth2TopDownViewHabitat
+                ):
+                    prev_top_down_view = self._top_down_view_generator.gen_top_down_view(
+                        depth_pair[0, :, :, 0, np.newaxis].cpu().numpy()
+                    )
+                    cur_top_down_view = self._top_down_view_generator.gen_top_down_view(
+                        depth_pair[0, :, :, 1, np.newaxis].cpu().numpy()
+                    )
+                    top_down_view_pair = (
+                        torch.FloatTensor(
+                            np.concatenate(
+                                [prev_top_down_view, cur_top_down_view], axis=2
+                            )
+                        )
+                        .to(depth_pair.device)
+                        .unsqueeze(0)
+                    )
+                else:
+                    raise ValueError
 
-            obs_pairs["top_down_view"] = top_down_view_pair
+                obs_pairs["top_down_view"] = top_down_view_pair
 
         local_delta_states = []
         local_delta_states_std = []
@@ -300,11 +308,18 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
 
                 if self.config.VO.REGRESS_MODEL.mode == "det":
                     self.vo_model[tmp_key].eval()
-                    if "act_embed" in self.config.VO.REGRESS_MODEL.name:
-                        actions = torch.Tensor([act]).long().to(rgb_pair.device)
-                        tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs, actions)
+                    if "transformer" in self.config.VO.REGRESS_MODEL.name:
+                        if "act_embed" in self.config.VO.REGRESS_MODEL.name:
+                            actions = torch.Tensor([act]).long().to(rgb_pair.device)
+                            tmp_deltas, pred_depth = self.vo_model[tmp_key](obs_pairs, actions)
+                        else:
+                            tmp_deltas, pred_depth = self.vo_model[tmp_key](obs_pairs)
                     else:
-                        tmp_deltas = self.vo_model[tmp_key](obs_pairs)
+                        if "act_embed" in self.config.VO.REGRESS_MODEL.name:
+                            actions = torch.Tensor([act]).long().to(rgb_pair.device)
+                            tmp_deltas = self.vo_model[tmp_key](obs_pairs, actions)
+                        else:
+                            tmp_deltas = self.vo_model[tmp_key](obs_pairs)
                     local_delta_states = tmp_deltas.cpu().numpy()[0, :]
                     local_delta_states = list(local_delta_states)
                     local_delta_states_std = [0, 0, 0]
