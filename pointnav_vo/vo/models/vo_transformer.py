@@ -19,6 +19,8 @@ import timm
 import types
 import math
 
+import warnings
+
 @baseline_registry.register_vo_model(name="vo_transformer_act_embed")
 class VisualOdometryTransformerActEmbed(nn.Module):
     def __init__(
@@ -313,11 +315,31 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
     def forward(self, observation_pairs, actions, return_depth=False):
 
-        # split connected RGB from b,h,w,3 -> b,h*2,w,3 -> b,3,h*2,w
+        if "rgb" in observation_pairs.keys() and "depth" in observation_pairs.keys():
 
-        if "rgb" in observation_pairs.keys():
+            depth = observation_pairs['depth']
+            depth = torch.cat((depth[:,:,:,:depth.shape[-1]//2], depth[:,:,:,depth.shape[-1]//2:]),dim=1)
+            depth = depth.expand(-1, -1, -1, 3)
+            depth = depth.permute(0,3,1,2).contiguous()
+
+            rgb = observation_pairs['rgb']
+            rgb = torch.cat((rgb[:,:,:,:rgb.shape[-1]//2], rgb[:,:,:,rgb.shape[-1]//2:]),dim=1)
+            rgb = rgb.permute(0,3,1,2).contiguous()
+            rgb = rgb / 255.0
+
+            x = torch.cat((rgb,depth),dim=2)
             
+            # # uncomment permutes and replace
+            # #   x = torch.cat((rgb,depth),dim=1)
+            # import torchvision
+            # for i, (x_i, a_i) in enumerate(zip(x, actions)):
+            #     torchvision.utils.save_image(x_i.permute(2,0,1), f'test_imgs/img_{i}_act_{a_i}.png', normalize=False)
+
+        elif "rgb" in observation_pairs.keys():
+            
+            # RGB -> b,h,w,3
             x = observation_pairs['rgb']
+            # split connected RGB from -> b,h*2,w,3
             x = torch.cat((x[:,:,:,:x.shape[-1]//2], x[:,:,:,x.shape[-1]//2:]),dim=1)
 
             # import torchvision
@@ -327,17 +349,23 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
             # self.debug_img(x)
 
-            # normalize RGB
+            # permute to fit model -> b,3,h*2,w
             x = x.permute(0,3,1,2).contiguous()
+
+            # normalize RGB
             x = x / 255.0
 
+        elif "depth" in observation_pairs.keys():
+            x = observation_pairs['depth']
+            x = torch.cat((x[:,:,:,:x.shape[-1]//2], x[:,:,:,x.shape[-1]//2:]),dim=1)
+            x = x.expand(-1, -1, -1, 3)
+            x = x.permute(0,3,1,2).contiguous()
+
         else:
+            warnings.warn('WARNING: config.VO.MODEL.visual_type can not be processed by config.VO.MODEL.name = "vo_transformer_act_embed". Model will be BLIND!')
             x = torch.zeros(len(actions), 3, 336, 192).to(actions.device)
 
         x = F.interpolate(x, size=(336, 192))
-       
-        # normalize visual inputs w/ running mean
-        x = self.running_mean_and_var(x)
 
         if self.cls_action:
             features = self.vit.forward(x, actions, self.EMBED_DIM)
