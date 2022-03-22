@@ -160,10 +160,13 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
         if trainer._run_type == "train":
             trainer. _set_up_optimizer()
 
-        vo_model = trainer.vo_model[trainer._act_type].to(rank)
+        # vo_model = trainer.vo_model[trainer._act_type].to(rank)
+        # for act in trainer._act_list:
+        #     trainer.vo_model = {}
+        #     trainer.vo_model[act] = DDP(vo_model, device_ids=[rank], find_unused_parameters=True)
+
         for act in trainer._act_list:
-            trainer.vo_model = {}
-            trainer.vo_model[act] = DDP(vo_model, device_ids=[rank], find_unused_parameters=True)
+            trainer.vo_model[act] = DDP(trainer.vo_model[act], device_ids=[rank], find_unused_parameters=True).to(rank)
 
         trainer.train_single(rank)
 
@@ -1102,14 +1105,30 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                     pretrained_ckpt = torch.load(
                         self.config.VO.MODEL.pretrained_ckpt[act_str]
                     )
+
+                    def convert_dataparallel_weights(weights):
+                        converted_weights = {}
+                        keys = weights.keys()
+                        for key in keys:
+                            new_key = key.split("module.")[-1]
+                            converted_weights[new_key] = weights[key]
+                        return converted_weights
+
                     if "model_state" in pretrained_ckpt:
+                        self.vo_model[act].load_state_dict(pretrained_ckpt["model_state"])
+                    elif "model_states" in pretrained_ckpt:
                         self.vo_model[act].load_state_dict(
-                            pretrained_ckpt["model_state"]
+                            convert_dataparallel_weights(pretrained_ckpt["model_states"][act])
                         )
-                    else:
-                        self.vo_model[act].load_state_dict(
-                            pretrained_ckpt["model_states"][act]
-                        )
+
+                    # if "model_state" in pretrained_ckpt:
+                    #     self.vo_model[act].load_state_dict(
+                    #         pretrained_ckpt["model_state"]
+                    #     )
+                    # else:
+                    #     self.vo_model[act].load_state_dict(
+                    #         pretrained_ckpt["model_states"][act]
+                    #     )
             else:
                 pass
 
