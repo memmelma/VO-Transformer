@@ -138,7 +138,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                     nprocs=world_size,
                     join=True)
 
-        n_gpus = self._config.N_GPUS if self._config.N_GPUS > 1 else torch.cuda.device_count()
+        n_gpus = self._config.N_GPUS if self._config.N_GPUS > 0 else torch.cuda.device_count()
         
         if n_gpus >= 2:
             world_size = n_gpus
@@ -159,7 +159,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
         trainer._set_up_model()
         if trainer._run_type == "train":
             trainer. _set_up_optimizer()
-
+        
         # vo_model = trainer.vo_model[trainer._act_type].to(rank)
         # for act in trainer._act_list:
         #     trainer.vo_model = {}
@@ -167,6 +167,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
 
         for act in trainer._act_list:
             trainer.vo_model[act] = DDP(trainer.vo_model[act], device_ids=[rank], find_unused_parameters=True).to(rank)
+            # if rank == 0 and world_size == 1:
+            #     trainer.vo_model[act].visual_encoder.running_mean_and_var._distributed = False
 
         trainer.train_single(rank)
 

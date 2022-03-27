@@ -56,7 +56,7 @@ if __name__ == "__main__":
         "--repo-path", type=str, required=True, help="path to PointNav repo",
     )
     parser.add_argument(
-        "--n_gpus", type=int, required=True, help="path to PointNav repo",
+        "--n_gpus", type=int, default=0, required=False, help="DEPRECATED! please specify in .yaml | timestamp for current executing."
     )
     parser.add_argument(
         "--addr", type=str, required=True, help="master address",

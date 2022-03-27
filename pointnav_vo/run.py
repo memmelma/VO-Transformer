@@ -58,7 +58,7 @@ def main():
         help="path to config yaml containing info about experiment",
     )
     parser.add_argument(
-        "--n-gpu", type=str, required=True, help="timestamp for current executing."
+        "--n-gpu", type=str, required=False, help="DEPRECATED! please specify in .yaml | timestamp for current executing."
     )
     parser.add_argument(
         "--cur-time", type=str, required=True, help="timestamp for current executing."
@@ -157,7 +157,7 @@ def run_exp(
                         model_infos.num_recurrent_layers,
                         config.NUM_UPDATES,
                         config.RL.PPO.num_mini_batch,
-                        n_gpu,
+                        config.N_GPUS if config.N_GPUS > 0 else torch.cuda.device_count(),
                         config.NUM_PROCESSES,
                         str(config.RL.PPO.lr),
                         cur_time,
