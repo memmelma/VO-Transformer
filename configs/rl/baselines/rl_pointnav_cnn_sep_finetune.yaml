@@ -9,6 +9,7 @@ NUM_UPDATES: 1000 # 5000000
 NUM_PROCESSES: 16
 SIMULATOR_GPU_ID: 0
 TORCH_GPU_ID: 1
+N_GPUS: -1
 
 # logging settings
 LOG_DIR: "train_log/rl/vit/"

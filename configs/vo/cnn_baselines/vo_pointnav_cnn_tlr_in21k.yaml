@@ -13,7 +13,7 @@ VIDEO_OPTION: []
 VIDEO_DIR: "{{LOG_DIR}}/videos"
 LOG_INTERVAL: 1
 
-N_GPUS: -1 # -1 equals all available GPUs
+N_GPUS: 1 # -1 equals all available GPUs
 DEBUG: False
 
 RESUME_TRAIN: False

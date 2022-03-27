@@ -9,6 +9,7 @@ NUM_UPDATES: 1000 # 5000000
 NUM_PROCESSES: 16
 SIMULATOR_GPU_ID: 0
 TORCH_GPU_ID: 1
+N_GPUS: -1
 
 # logging settings
 LOG_DIR: "train_log/rl/vit/"
@@ -112,7 +113,7 @@ VO:
     omnidata_model_path: 'dpt/pretrained_models'
     cls_action: True
     hidden_size: 512
-    visual_type: ["rgb"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
+    visual_type: ["rgb", "depth"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
     discretize_depth: "none" # choices: ['none', 'hard']
     discretized_depth_channels: 0
     dropout_p: 0.
@@ -124,7 +125,7 @@ VO:
     pretrained_type: "rgb_inv_joint"
     all_pretrained_ckpt: {
       "rgb_inv_joint": {
-        "all": "train_log/vit/seed_100-vo-noise_1-train-rgb_d-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-small-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_64-lr_0.0002-w_de_0.0-20220310_182528597377/checkpoints/ckpt_epoch_140.pth",
+        "all": "train_log/vit/seed_100-vo-noise_1-train-rgb_d-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-small-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_64-lr_0.0002-w_de_0.0-20220323_151007695553/checkpoints/ckpt_epoch_140.pth",
         },
     }
 

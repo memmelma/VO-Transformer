@@ -125,7 +125,7 @@ VO:
     pretrained_type: "rgb_inv_joint"
     all_pretrained_ckpt: {
       "rgb_inv_joint": {
-        "all": "train_log/vit/seed_100-vo-noise_1-train-rgb-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-small-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_64-lr_0.0002-w_de_0.0-20220302_205716413920/checkpoints/ckpt_epoch_140.pth",
+        "all": "train_log/vit/seed_100-vo-noise_1-train-rgb_d-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-small-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_64-lr_0.0002-w_de_0.0-20220310_182528597377/checkpoints/ckpt_epoch_140.pth",
         },
     }
 
