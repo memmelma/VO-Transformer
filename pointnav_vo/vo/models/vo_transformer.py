@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from functools import partial
 
 from pointnav_vo.utils.misc_utils import Flatten
 from pointnav_vo.utils.baseline_registry import baseline_registry
@@ -11,8 +12,11 @@ from pointnav_vo.model_utils.visual_encoders import resnet
 from pointnav_vo.model_utils.running_mean_and_var import RunningMeanAndVar
 from pointnav_vo.vo.common.common_vars import *
 
-import PIL
+# from dpt.dpt_depth import DPTDepthModel
 from pointnav_vo.depth_estimator.modules.midas.dpt_depth import DPTDepthModel
+from pointnav_vo.mmae import *
+
+import PIL
 from torchvision import transforms
 
 import timm
@@ -21,16 +25,18 @@ import math
 
 import warnings
 
+
 @baseline_registry.register_vo_model(name="vo_transformer_act_embed")
 class VisualOdometryTransformerActEmbed(nn.Module):
     def __init__(
         self,
         *,
+        observation_space,
         backbone='base', # 'small', 'base', 'large', 'hybrid'
         cls_action = True,
         train_backbone=False,
         pretrain_backbone='None', # 'in21k', 'dino' (in21k), 'omnidata', 'None
-        omnidata_model_path='dpt/pretrained_models',
+        custom_model_path=None,
 
         normalize_visual_inputs=False,
 
@@ -44,7 +50,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         super().__init__()
         
         self.cls_action = cls_action
-
+        self.pretrain_backbone = pretrain_backbone
         self.output_dim = output_dim
 
         self.feature_dimensions = dict({
@@ -56,15 +62,15 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
         self.supported_pretraining = dict({
             'small': ['in21k', 'dino'],
-            'base': ['in21k', 'dino'],
+            'base': ['in21k', 'dino', 'mmae'],
             'hybrid': ['in21k', 'omnidata'],
             'large': ['in21k', 'omnidata']
         })
 
-        assert pretrain_backbone in self.supported_pretraining[backbone] or pretrain_backbone == 'None', \
-        f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {self.supported_pretraining[backbone]}.'
+        assert self.pretrain_backbone in self.supported_pretraining[backbone] or self.pretrain_backbone == 'None', \
+        f'backbone "{backbone}" does not support pretrain_backbone "{self.pretrain_backbone}". Choose one of {self.supported_pretraining[backbone]}.'
 
-        if pretrain_backbone == 'in21k':
+        if self.pretrain_backbone == 'in21k':
             model_string = dict({
                 'small': 'vit_small_patch16_384',
                 'base': 'vit_base_patch16_384',
@@ -73,16 +79,16 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             })
             self.vit = timm.create_model(model_string[backbone], pretrained=True)
             
-        elif pretrain_backbone == 'dino':
+        elif self.pretrain_backbone == 'dino':
             model_string = dict({
                 'small': 'dino_vits16',
                 'base': 'dino_vitb16'
             })
             self.vit = torch.hub.load('facebookresearch/dino:main', model_string[backbone])
 
-        elif pretrain_backbone == 'omnidata':
+        elif self.pretrain_backbone == 'omnidata':
             
-            assert os.path.exists(omnidata_model_path), f'Path {omnidata_model_path} does not exist!'
+            assert os.path.exists(custom_model_path), f'Path {custom_model_path} does not exist!'
 
             model_string = dict({
                 'hybrid': 'vitb_rn50_384',
@@ -94,12 +100,10 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 'large': 'omnidata_rgb2depth_dpt_large.pth'
             })
 
-            from dpt.dpt_depth import DPTDepthModel
-
             self.vit = DPTDepthModel(backbone=model_string[backbone])
 
-            pretrained_model_path = os.path.join(omnidata_model_path, model_path[backbone])
-            checkpoint = torch.load(pretrained_model_path, map_location='cuda:0')
+            pretrained_model_path = os.path.join(custom_model_path, model_path[backbone])
+            checkpoint = torch.load(pretrained_model_path, map_location='cpu')
             if 'state_dict' in checkpoint:
                 state_dict = {}
                 for k, v in checkpoint['state_dict'].items():
@@ -110,7 +114,54 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             self.vit.load_state_dict(state_dict, strict=False)
             self.vit = self.vit.pretrained.model
 
-        else: # pretrain_backbone == 'None'
+        elif self.pretrain_backbone == 'mmae':
+            assert 'rgb' in observation_space and 'depth' in observation_space; 'MMAE requires both "rgb" and "depth" in visual_type!'
+            
+            DOMAIN_CONF = {
+                'rgb': {
+                    'input_adapter': partial(PatchedInputAdapter, num_channels=3, stride_level=1),
+                    'output_adapter': partial(PatchedOutputAdapterXA, num_channels=3, stride_level=1),
+                    'loss': MaskedMSELoss,
+                },
+                'depth': {
+                    'input_adapter': partial(PatchedInputAdapter, num_channels=1, stride_level=1),
+                    'output_adapter': partial(PatchedOutputAdapterXA, num_channels=1, stride_level=1),
+                    'loss': MaskedMSELoss,
+                },
+                'semseg': {
+                    'input_adapter': partial(SemSegInputAdapter, num_classes=133,
+                                            dim_class_emb=64, interpolate_class_emb=False, stride_level=4),
+                    'output_adapter': partial(PatchedOutputAdapterXA, num_channels=133, stride_level=4),
+                    'loss': MaskedCrossEntropyLoss,
+                },
+            }
+
+            downstream_modalities = ['rgb', 'depth']
+
+            patch_size = 16
+
+            input_adapters = {
+                domain: dinfo['input_adapter'](
+                    patch_size_full = patch_size,
+                )
+                for domain, dinfo in DOMAIN_CONF.items()
+                if domain in downstream_modalities
+            }
+
+            self.vit = multivit_base(
+                input_adapters=input_adapters,
+                output_adapters=None,
+            )
+
+            model_path = dict({
+                'base': 'MultiMAE-B-1600.pth'
+            })
+
+            pretrained_model_path = os.path.join(custom_model_path, model_path[backbone])
+            ckpt = torch.load(pretrained_model_path, map_location='cpu') # MMAE-B
+            self.vit.load_state_dict(ckpt['model'], strict=False)
+
+        else: # self.pretrain_backbone == 'None'
             model_string = dict({
                 'small': 'vit_small_patch16_384',
                 'base': 'vit_base_patch16_384',
@@ -124,7 +175,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         self.vit.embed = embed
         
         # overwrite forward functions to fit backbone and add custom action embedding
-        if pretrain_backbone == 'dino' and self.cls_action:
+        if self.pretrain_backbone == 'dino' and self.cls_action:
 
             def prepare_tokens(self, x, actions, EMBED_DIM):
                 B, nc, w, h = x.shape
@@ -150,7 +201,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
             self.vit.forward = types.MethodType(forward, self.vit)
 
-        elif pretrain_backbone == 'dino' and not self.cls_action:
+        elif self.pretrain_backbone == 'dino' and not self.cls_action:
 
             def forward(self, x):
                 x = self.prepare_tokens(x)
@@ -161,6 +212,9 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
             self.vit.forward = types.MethodType(forward, self.vit)
 
+        elif self.pretrain_backbone == 'mmae':
+            pass
+            
         elif self.cls_action:
 
             def interpolate_pos_encoding(self, x, w, h):    
@@ -365,12 +419,25 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             warnings.warn('WARNING: config.VO.MODEL.visual_type can not be processed by config.VO.MODEL.name = "vo_transformer_act_embed". Model will be BLIND!')
             x = torch.zeros(len(actions), 3, 336, 192).to(actions.device)
 
-        x = F.interpolate(x, size=(336, 192))
 
-        if self.cls_action:
-            features = self.vit.forward(x, actions, self.EMBED_DIM)
+        if self.pretrain_backbone == 'mmae':
+            input_size = (224, 224) # (336, 192)
+            rgb = F.interpolate(rgb, size=input_size)
+            depth = F.interpolate(depth, size=input_size)
+            input_dict = {'rgb': rgb, 'depth': depth[:,0].unsqueeze(1)}
+                        
+            if self.cls_action:
+                features = self.vit.forward(input_dict, actions, self.EMBED_DIM)[:,-1]
+            else:
+                features = self.vit.forward(input_dict)[:,-1]
+
         else:
-            features = self.vit.forward(x)
+            x = F.interpolate(x, size=(336, 192))
+
+            if self.cls_action:
+                features = self.vit.forward(x, actions, self.EMBED_DIM)
+            else:
+                features = self.vit.forward(x)
 
         output = self.head(features)
 

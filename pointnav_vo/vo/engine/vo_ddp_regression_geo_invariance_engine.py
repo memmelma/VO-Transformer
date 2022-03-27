@@ -1061,7 +1061,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 cls_action=self.config.VO.MODEL.cls_action,
                 train_backbone=self.config.VO.MODEL.train_backbone,
                 pretrain_backbone=self.config.VO.MODEL.pretrain_backbone,
-                omnidata_model_path=self.config.VO.MODEL.omnidata_model_path,
+                custom_model_path=self.config.VO.MODEL.custom_model_path,
             )
 
             parameter_count = sum(
