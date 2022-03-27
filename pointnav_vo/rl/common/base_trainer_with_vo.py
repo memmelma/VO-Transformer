@@ -113,10 +113,9 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                         raise ValueError
 
             if (
-                True
-                # "discretize_depth" in self.config.VO.REGRESS_MODEL.name
-                # or "dd" in self.config.VO.REGRESS_MODEL.name
-                # or "discretize_depth" in self.config.VO.REGRESS_MODEL.visual_type
+                "discretize_depth" in self.config.VO.REGRESS_MODEL.name
+                or "dd" in self.config.VO.REGRESS_MODEL.name
+                or "discretize_depth" in self.config.VO.REGRESS_MODEL.visual_type
             ):
 
                 if self.config.VO.REGRESS_MODEL.discretize_depth in ["hard"]:
@@ -228,10 +227,9 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
 
         if self.config.VO.VO_TYPE == "REGRESS":
             if (
-                True
-                # "discretize_depth" in self.config.VO.REGRESS_MODEL.name
-                # or "dd" in self.config.VO.REGRESS_MODEL.name
-                # or "discretize_depth" in self.config.VO.REGRESS_MODEL.visual_type
+                "discretize_depth" in self.config.VO.REGRESS_MODEL.name
+                or "dd" in self.config.VO.REGRESS_MODEL.name
+                or "discretize_depth" in self.config.VO.REGRESS_MODEL.visual_type
 
             ):
 
