@@ -78,10 +78,10 @@ VO:
     
     train_backbone: True # True: also train the ViT encoder, False: freeze
     # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
-    pretrain_backbone: 'mmae'
+    pretrain_backbone: 'dino'
     cls_action: True # True
     # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    visual_type: ["rgb", "depth"]
+    visual_type: ["rgb"]
 
     hidden_size: 512
     custom_model_path: 'pretrained'

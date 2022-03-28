@@ -39,7 +39,7 @@ VO:
     weight_decay: 0.0 # we do not use weight decay in our experiments
     scheduler: "none" # choices: 'none', 'cosine'
     eps: 1.0e-8
-    batch_size: 64 # [ A100|base|mixed: 32 ] [ A100|small|mixed: 64 ]
+    batch_size: 56 # [ A100|base|mixed: 32 ] [ A100|small|mixed: 64 ]
     epochs: 150
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}

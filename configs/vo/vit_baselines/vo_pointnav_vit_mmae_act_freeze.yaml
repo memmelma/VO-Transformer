@@ -76,7 +76,7 @@ VO:
     # choices: 'small', 'base', 'large', 'hybrid'
     visual_backbone: "base" 
     
-    train_backbone: True # True: also train the ViT encoder, False: freeze
+    train_backbone: False # True: also train the ViT encoder, False: freeze
     # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
     pretrain_backbone: 'mmae'
     cls_action: True # True
