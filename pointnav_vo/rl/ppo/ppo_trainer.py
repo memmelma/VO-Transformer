@@ -27,7 +27,8 @@ from habitat.utils.geometry_utils import (
 from habitat.utils.visualizations import maps
 
 from pointnav_vo.utils.baseline_registry import baseline_registry
-from pointnav_vo.utils.tensorboard_utils import TensorboardWriter
+# from pointnav_vo.utils.tensorboard_utils import TensorboardWriter
+from pointnav_vo.utils.wandb_utils import WandbWriter
 from pointnav_vo.utils.misc_utils import (
     batch_obs,
     generate_video,
@@ -490,7 +491,7 @@ class PPOTrainer(BaseRLTrainerWithVO):
     def _eval_checkpoint(
         self,
         checkpoint_path: str,
-        writer: TensorboardWriter,
+        writer: WandbWriter,
         checkpoint_index: int = 0,
     ) -> None:
         r"""Evaluates a single checkpoint.
@@ -505,6 +506,13 @@ class PPOTrainer(BaseRLTrainerWithVO):
         """
         # Map location CPU is almost always better than mapping to a CUDA device.
         ckpt_dict = self.load_checkpoint(checkpoint_path, map_location="cpu")
+
+        # with open("config.log", "w") as f:
+        #     f.write(str(ckpt_dict["config"]))
+        #     f.close()
+        # print(ckpt_dict["config"])
+        # print(self.config.EVAL.USE_CKPT_CONFIG)
+        # exit()
 
         if self.config.EVAL.USE_CKPT_CONFIG:
             config = self._setup_eval_config(ckpt_dict["config"])
@@ -586,7 +594,8 @@ class PPOTrainer(BaseRLTrainerWithVO):
                 tmp_goal = compute_goal_pos(
                     np.array(tmp.goals[0].position), [dx, dz, dyaw]
                 )
-                observations[i]["pointgoal_with_gps_compass"] = tmp_goal["polar"]
+                # observations[i]["pointgoal_with_gps_compass"] = tmp_goal["polar"]
+                observations[i]["pointgoal"] = tmp_goal["polar"]
 
                 prev_goal_positions.append(tmp_goal)
                 tmp_obs_dict = {"new_traj": True}
@@ -880,7 +889,8 @@ class PPOTrainer(BaseRLTrainerWithVO):
                         # NOTE: DEBUG
                         # print("\n", actions[i][0].item(), eval_traj_infos[i][-1]["gt_delta"], local_delta_states)
 
-                    observations[i]["pointgoal_with_gps_compass"] = tmp_goal["polar"]
+                    # observations[i]["pointgoal_with_gps_compass"] = tmp_goal["polar"]
+                    observations[i]["pointgoal"] = tmp_goal["polar"]
                     assert "new_traj" not in observations[i]
 
                     tmp_obs_dict = {"new_traj": dones[i] == 1}

@@ -164,6 +164,14 @@ class ResNetEncoder(nn.Module):
         if self.obs_transform:
             cnn_input = [self.obs_transform(inp) for inp in cnn_input]
 
+        # import os
+        # import torchvision
+        # save_dir = 'imgs_policy'
+        # os.makedirs(save_dir, exist_ok=True)
+        # s = torch.randint(0,100,(1,1)).item()
+        # for i, x_i in enumerate(cnn_input):
+        #     torchvision.utils.save_image(x_i, os.path.join(save_dir,f'img_{i}_{s}.png'), normalize=False)
+
         x = torch.cat(cnn_input, dim=1)
         x = F.avg_pool2d(x, 2)
 
