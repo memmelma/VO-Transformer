@@ -61,7 +61,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             'large': ['in21k', 'omnidata']
         })
 
-        assert pretrain_backbone in self.supported_pretraining[backbone] or pretrain_backbone == 'None', \
+        assert pretrain_backbone in self.supported_pretraining[backbone] or pretrain_backbone == None, \
         f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {self.supported_pretraining[backbone]}.'
 
         if pretrain_backbone == 'in21k':
@@ -333,7 +333,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             # #   x = torch.cat((rgb,depth),dim=1)
             # import torchvision
             # for i, (x_i, a_i) in enumerate(zip(x, actions)):
-            #     torchvision.utils.save_image(x_i.permute(2,0,1), f'test_imgs/img_{i}_act_{a_i}.png', normalize=False)
+            #     torchvision.utils.save_image(x_i.permute(2,0,1), f'imgs_debug/img_{i}_act_{a_i}.png', normalize=False)
 
         elif "rgb" in observation_pairs.keys():
             
