@@ -223,13 +223,23 @@ class PPOTrainer(BaseRLTrainerWithVO):
                     )
                 else:
                     # episode continues
-                    (
-                        local_delta_states,
-                        local_delta_states_std,
-                        extra_infos,
-                    ) = self._compute_local_delta_states_from_vo(
-                        self._prev_obs[i], observations[i], actions[i].cpu().item(),
-                    )
+                    
+                    if self.config.VO.USE_VO_MODEL:
+                        (
+                            local_delta_states,
+                            local_delta_states_std,
+                            extra_infos,
+                        ) = self._compute_local_delta_states_from_vo(
+                            self._prev_obs[i], observations[i], actions[i].cpu().item(),
+                        )
+                    else:
+                        tmp_gt = np.array(
+                            infos[i]["top_down_map"]["extra_infos"]["delta"]
+                        )
+                        local_delta_states = tmp_gt
+                        local_delta_states_std = np.zeros_like(tmp_gt)
+                        extra_infos = infos
+                    
                     tmp_goal = compute_goal_pos(
                         self._prev_goal_positions[i]["cartesian"], local_delta_states
                     )
@@ -568,7 +578,8 @@ class PPOTrainer(BaseRLTrainerWithVO):
         # env timing
         env_timings = []
 
-        if self.config.VO.USE_VO_MODEL:
+        # if self.config.VO.USE_VO_MODEL:
+        if True:
             # for computing goal position
             prev_obs = []
             prev_goal_positions = []
@@ -729,7 +740,8 @@ class PPOTrainer(BaseRLTrainerWithVO):
                 # fmt: on
 
             # visual odometry
-            if self.config.VO.USE_VO_MODEL:
+            # if self.config.VO.USE_VO_MODEL:
+            if True:
                 for i in range(self.envs.num_envs):
                     if not_done_masks[i].item() == 0:
                         # episode ends
@@ -838,16 +850,21 @@ class PPOTrainer(BaseRLTrainerWithVO):
 
                         tmp_start = time.time()
 
-                        (
-                            local_delta_states,
-                            local_delta_states_std,
-                            extra_infos,
-                        ) = self._compute_local_delta_states_from_vo(
-                            prev_obs[i],
-                            cur_obs,
-                            actions[i][0].item(),
-                            vis_video=len(self.config.VIDEO_OPTION) > 0,
-                        )
+                        if self.config.VO.USE_VO_MODEL:
+                            (
+                                local_delta_states,
+                                local_delta_states_std,
+                                extra_infos,
+                            ) = self._compute_local_delta_states_from_vo(
+                                prev_obs[i],
+                                cur_obs,
+                                actions[i][0].item(),
+                                vis_video=len(self.config.VIDEO_OPTION) > 0,
+                            )
+                        else:
+                            local_delta_states = tmp_gt
+                            local_delta_states_std = np.zeros_like(tmp_gt)
+                            extra_infos = infos
 
                         vo_timings[i].append(time.time() - tmp_start)
 
@@ -971,7 +988,8 @@ class PPOTrainer(BaseRLTrainerWithVO):
                     ] = eval_traj_infos[i][1:]
                     eval_traj_infos[i] = []
 
-                    if self.config.VO.USE_VO_MODEL:
+                    # if self.config.VO.USE_VO_MODEL:
+                    if True:
                         eval_episode_info_dict[cur_scene_id][cur_episode_id][
                             "vo_l2_loss"
                         ] = completed_vo_l2_losses[i]
@@ -1034,7 +1052,8 @@ class PPOTrainer(BaseRLTrainerWithVO):
             eval_traj_infos = [
                 _ for i, _ in enumerate(eval_traj_infos) if i not in envs_to_pause
             ]
-            if self.config.VO.USE_VO_MODEL:
+            # if self.config.VO.USE_VO_MODEL:
+            if True:
                 # for computing goal position
                 prev_goal_positions = [
                     _
@@ -1111,7 +1130,8 @@ class PPOTrainer(BaseRLTrainerWithVO):
         aggregated_stats["env_timing"] = np.sum(env_timings) / len(env_timings)
         logger.info(f"Average env timing per step: {aggregated_stats['env_timing']}")
 
-        if self.config.VO.USE_VO_MODEL:
+        # if self.config.VO.USE_VO_MODEL:
+        if True:
             # vo L2 loss
             all_vo_l2_losses = list(zip(*all_vo_l2_losses))
             all_steps = np.sum(all_vo_l2_losses[0])
