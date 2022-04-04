@@ -154,3 +154,6 @@ imgs_attention_heads/
 imgs_test/
 imgs_rgb_depth/
 imgs_policy/
+
+# model checkpoints
+*.pth

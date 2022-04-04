@@ -35,6 +35,7 @@ fi
 
 
 ### EXPERIMENT ###
+pip install einops
 
 echo "Run exp..."
 python ${POINTNAV_VO_ROOT}/launch.py \

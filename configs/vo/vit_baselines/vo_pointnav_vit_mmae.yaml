@@ -1,0 +1,121 @@
+# BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
+BASE_TASK_CONFIG_PATH: "configs/challenge_pointnav2021.local.rgbd.yaml"
+
+ENGINE_NAME: "vo_transformer_regression_geo_inv_engine"
+
+# logging settings
+LOG_DIR: "train_log/vit/"
+LOG_FILE: "{{LOG_DIR}}/train.log"
+INFO_DIR: "{{LOG_DIR}}/infos"
+CHECKPOINT_FOLDER: "{{LOG_DIR}}/checkpoints"
+TENSORBOARD_DIR: "{{LOG_DIR}}/tb"
+VIDEO_OPTION: []
+VIDEO_DIR: "{{LOG_DIR}}/videos"
+LOG_INTERVAL: 1
+
+N_GPUS: -1 # -1 equals all available GPUs
+DEBUG: False
+
+RESUME_TRAIN: False
+RESUME_STATE_FILE: "resume_train_ckpt.pth"   # path to the checkpoint you want to resume training from
+
+# evaluation settings
+EVAL:
+  EVAL_WITH_CKPT: True
+  EVAL_CKPT_PATH: "eval_ckpt.pth"   # path to the checkpoint you want to evaluate with
+
+VO:
+  VO_TYPE: "REGRESS"
+
+  VIS_SIZE_W: 341
+  VIS_SIZE_H: 192
+
+  TRAIN:
+    # we use
+    # - 2.5e-4 for training from the scratch
+    # - 1.5e-4 for joint training left-right model with geometric invariance loss
+    lr: 2.e-4
+    backbone_lr: 2.e-4
+    weight_decay: 0.0 # we do not use weight decay in our experiments
+    scheduler: "none" # choices: 'none', 'cosine'
+    eps: 1.0e-8
+    batch_size: 56 # [ A100|base|mixed: 32 ] [ A100|small|mixed: 64 ]
+    epochs: 150
+    loss_weight_fixed: True
+    loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
+    log_grad: False
+    log_grad_interval: 200
+    optim: "adamw"
+    warm_up_steps: 10 # ~5-10% steps, e.g. 5 warmup, 100 train
+    mixed_precision: True
+    max_clip_gradient_norm: 0.0 # vit: 1.0, off: 0.0
+    depth_aux_loss: 0.0 # requires visual_type: ["depth"]
+    
+    collision: "-1"   # whether to train w/ or w/o collision data. -1 means we train on all data no matter whether there is collsion or not.
+
+    # choices: [-1, 1, 2, 3, [2, 3]]
+    # - -1: unified model for all actions
+    # - 1, 2, 3: separate model for specific action
+    # - [2, 3]: jointly train turn_left and turn_right action
+    action_type: -1
+  
+  EVAL:
+    save_pred: True
+    rank_pred: False
+    rank_top_k: 20
+    eval_acts: ["no_specify"]  # choices: ["no_specify", "forward", "left", "right"]
+  
+  MODEL:
+    # choices:
+    # [vo_cnn, vo_cnn_rgb, vo_cnn_wider, vo_cnn_deeper,
+    #  vo_cnn_act_embed, vo_cnn_wider_act_embed,
+    #  vo_cnn_rgb_d_dd, vo_cnn_rgb_d_top_down, vo_cnn_rgb_dd_top_down, vo_cnn_d_dd_top_down,
+    #  vo_cnn_rgb_d_dd_top_down,
+    #  vo_transformer_act_embed]
+    name: "vo_transformer_act_embed"
+    # choices: 'small', 'base', 'large', 'hybrid'
+    visual_backbone: "base" 
+    
+    train_backbone: True # True: also train the ViT encoder, False: freeze
+    # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
+    pretrain_backbone: 'mmae'
+    cls_action: False # True
+    # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
+    visual_type: ["rgb", "depth"]
+
+    hidden_size: 512
+    custom_model_path: 'pretrained'
+    # choices: ['none', 'hard']
+    discretize_depth: "none"
+    # discretized_depth_channels: 10
+    discretized_depth_channels: 0
+    top_down_center_crop: False
+    dropout_p: 0 # 0.2
+
+    # set pretrained to True if you want to fine-tune some checkpoints
+    pretrained: False
+    pretrained_ckpt: {
+      "forward": "ckpt_forward.pth",
+      "left": "act_left.pth",
+      "right": "act_right.pth",
+    }
+
+  REGRESSION:
+    delta_types: ["dx", "dz", "dyaw"]
+  
+  GEOMETRY:
+    loss_inv_weight: 1
+    # check this again. really double and tripple check lol 
+    invariance_types: ["inverse_joint_train"] # ["inverse_data_augment_only"]  # choices: ["inverse_data_augment_only", "inverse_joint_train"]
+
+  DATASET:
+
+    # TRAIN_WITH_NOISE: dataset/vo_dataset/train_250000.h5
+    # EVAL_WITH_NOISE: dataset/vo_dataset/val_25000.h5
+
+    TRAIN_WITH_NOISE: /scratch/memmel/dataset/train_250000.h5
+    EVAL_WITH_NOISE: /scratch/memmel/dataset/val_25000.h5
+
+    # use only 1 / PARTIAL_DATA_N_SPLITS data to train
+    # so PARTIAL_DATA_N_SPLITS = 1 means we use all data
+    PARTIAL_DATA_N_SPLITS: 1

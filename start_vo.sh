@@ -11,6 +11,9 @@ export NUMBA_THREADING_LAYER=workqueue && \
 # cd ${POINTNAV_VO_ROOT} && \
 # login to git
 sh login_git.sh
+
+pip install einops
+
 # exec script
 ulimit -n 65000 && \
 python ${POINTNAV_VO_ROOT}/launch.py \
