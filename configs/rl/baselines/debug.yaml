@@ -1,12 +1,12 @@
-BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
-# BASE_TASK_CONFIG_PATH: "configs/challenge_pointnav2021.local.rgbd.yaml"
+BASE_TASK_CONFIG_PATH: "configs/challenge_pointnav2021.local.rgbd.yaml"
+# BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
 
 # training settings
 ENGINE_NAME: "efficient_ddppo"
 ENV_NAME: "NavRLEnv"
 SENSORS: ["DEPTH_SENSOR", "RGB_SENSOR"]
 NUM_UPDATES: 5000000
-NUM_PROCESSES: 2
+NUM_PROCESSES: 1
 SIMULATOR_GPU_ID: 0
 TORCH_GPU_ID: 0
 
@@ -19,14 +19,14 @@ TENSORBOARD_DIR: "train_log/tb"
 VIDEO_OPTION: ["wandb"]   # choices: ["none", "disk", "tensorboard"], "none" is used for storing image info but not generating video
 VIDEO_DIR: "train_log/videos"
 CHECKPOINT_INTERVAL: 50
-LOG_INTERVAL: 10
+LOG_INTERVAL: 1
 
 DEBUG: False
 
 # evaluation settings
 EVAL:
   SPLIT: val
-  TEST_EPISODE_COUNT: -1
+  TEST_EPISODE_COUNT: 2 # -1
   SAVE_RANKED_IMGS: False
   RANK_TOP_K: 1
   RESIZE_TOPDOWN_MAP: False
@@ -34,8 +34,8 @@ EVAL:
 
   EVAL_WITH_CKPT: True
 
-  # EVAL_CKPT_PATH: "pretrained_ckpts/rl/tune_vo/rl_tune_vo.pth"  # path to the checkpoint you want to evaluate with
   EVAL_CKPT_PATH: "pretrained_ckpts/rl/no_tune/rl_no_tune.pth"  # path to the checkpoint you want to evaluate with
+  # EVAL_CKPT_PATH: "pretrained_ckpts/rl/tune_vo/rl_tune_vo.pth"  # path to the checkpoint you want to evaluate with
 
 
 RESUME_TRAIN: False
@@ -96,7 +96,7 @@ RL:
     reset_critic: False
 
 VO:
-  USE_VO_MODEL: False # True
+  USE_VO_MODEL: False # False
 
   VO_TYPE: "REGRESS"
 
@@ -111,13 +111,16 @@ VO:
     #  vo_cnn_rgb_d_dd, vo_cnn_rgb_d_top_down, vo_cnn_rgb_dd_top_down, vo_cnn_d_dd_top_down,
     #  vo_cnn_rgb_d_dd_top_down]
     name: "vo_cnn_rgb_d_dd_top_down"
-    visual_backbone: "resnet18"
+    visual_backbone: "resnet18" # 'small', 'base', 'large', 'hybrid'
+    train_backbone: True # True: also train the ViT encoder, False: freeze
+    pretrain_backbone: 'None' # 'in21k', 'dino' (in1k), 'omnidata', 'None'
+    omnidata_model_path: 'dpt/pretrained_models'
+    cls_action: True
     hidden_size: 512
-    visual_type: ["rgb", "depth", "discretized_depth", "top_down_view"]  # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    dropout_p: 0.2
-
-    discretize_depth: "hard"  # choices: ['none', 'hard']
+    visual_type: ["rgb", "depth", "discretized_depth", "top_down_view"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
+    discretize_depth: "hard" # choices: ['none', 'hard']
     discretized_depth_channels: 10
+    dropout_p: 0.2
 
     regress_type: "sep_act"   # choices: ["unified_act", "sep_act"]
     mode: "det"  # choices: ["rnd", "det"]

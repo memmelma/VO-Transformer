@@ -1,3 +1,4 @@
+SEED: 1
 # BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
 BASE_TASK_CONFIG_PATH: "configs/challenge_pointnav2021.local.rgbd.yaml"
 
@@ -5,11 +6,11 @@ BASE_TASK_CONFIG_PATH: "configs/challenge_pointnav2021.local.rgbd.yaml"
 ENGINE_NAME: "efficient_ddppo"
 ENV_NAME: "NavRLEnv"
 SENSORS: ["DEPTH_SENSOR", "RGB_SENSOR"]
-NUM_UPDATES: 1000 # 5000000
+NUM_UPDATES: 15000 # 5000000
 NUM_PROCESSES: 14
 SIMULATOR_GPU_ID: 0
-TORCH_GPU_ID: 1
-N_GPUS: -1
+TORCH_GPU_ID: 0
+N_GPUS: 1
 
 # logging settings
 LOG_DIR: "train_log/rl/vit/"
@@ -97,6 +98,7 @@ RL:
     reset_critic: False
 
 VO:
+  # TUNE_WITH_GT: True
   USE_VO_MODEL: False
 
   VO_TYPE: "REGRESS"
@@ -113,7 +115,7 @@ VO:
     omnidata_model_path: 'dpt/pretrained_models'
     cls_action: True
     hidden_size: 512
-    visual_type: ["rgb"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
+    visual_type: ["rgb", "depth", "top_down_view"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
     discretize_depth: "none" # choices: ['none', 'hard']
     discretized_depth_channels: 0
     dropout_p: 0.

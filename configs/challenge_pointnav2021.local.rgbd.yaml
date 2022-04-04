@@ -55,16 +55,8 @@ TASK:
   SUCCESS:
     SUCCESS_DISTANCE: 0.36 # 2 x Agent Radius
 
-# DATASET:
-#   TYPE: PointNav-v1
-#   SPLIT: val_mini
-#   DATA_PATH: habitat-challenge-data/pointgoal_gibson_v2/{split}/{split}.json.gz
-#   SCENES_DIR: "habitat-challenge-data/data/scene_datasets/"
-
 DATASET:
   TYPE: PointNav-v1
   SPLIT: train
-  # SCENES_DIR: dataset/Gibson
-  # DATA_PATH: dataset/habitat_datasets/pointnav/gibson/v2/{split}/{split}.json.gz
   SCENES_DIR: /scratch/memmel/dataset/Gibson
   DATA_PATH: /scratch/memmel/dataset/habitat_datasets/pointnav/gibson/v2/{split}/{split}.json.gz

@@ -1,3 +1,10 @@
+### EVAL RECIPE
+## add "top_down_view" top visual_type
+## set EVAL_CKPT_PATH
+## set NUM_PROCESSES=14
+## SIMULATOR_GPU_ID=0, TORCH_GPU_ID=0, N_GPUS=1
+## i is enough
+
 # BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
 BASE_TASK_CONFIG_PATH: "configs/challenge_pointnav2021.local.rgbd.yaml"
 
@@ -5,11 +12,11 @@ BASE_TASK_CONFIG_PATH: "configs/challenge_pointnav2021.local.rgbd.yaml"
 ENGINE_NAME: "efficient_ddppo"
 ENV_NAME: "NavRLEnv"
 SENSORS: ["DEPTH_SENSOR", "RGB_SENSOR"]
-NUM_UPDATES: 2500
-NUM_PROCESSES: 16
+NUM_UPDATES: 15000 # 5000000
+NUM_PROCESSES: 14 # 2
 SIMULATOR_GPU_ID: 0
-TORCH_GPU_ID: 1
-N_GPUS: -1
+TORCH_GPU_ID: 0
+N_GPUS: 1
 
 # logging settings
 LOG_DIR: "train_log/rl/vit/"
@@ -36,11 +43,12 @@ EVAL:
   EVAL_WITH_CKPT: True
 
   # EVAL_CKPT_PATH: "pretrained_ckpts/rl/tune_vo/rl_tune_vo.pth"  # path to the checkpoint you want to evaluate with
-  EVAL_CKPT_PATH: "replace with fine-tuned model"  # path to the checkpoint you want to evaluate with
+  # EVAL_CKPT_PATH : "train_log/rl/vit/seed_100-rl-train-vo_1-noise_rgb_1_depth_1_act_1-depth_sensor_rgb_sensor-model_resnet_rnn_policy-visual_resnet18-rnn_LSTM_2-updates_15000-minibatch_2-ngpu_8-proc_16-lr_0.0001-20220329_123010262981/checkpoints/ckpt_97.update_4850.frames_9934848.pth"  # path to the checkpoint you want to evaluate with
+  EVAL_CKPT_PATH : "train_log/rl/vit/seed_100-rl-train-vo_1-noise_rgb_1_depth_1_act_1-depth_sensor_rgb_sensor-model_resnet_rnn_policy-visual_resnet18-rnn_LSTM_2-updates_15000-minibatch_2-ngpu_8-proc_16-lr_0.0001-20220329_123010262981/checkpoints/ckpt_50.update_2500.frames_5122048.pth"  # path to the checkpoint you want to evaluate with
 
 
 RESUME_TRAIN: False
-RESUME_STATE_FILE: "resume_train_ckpt.pth"   # path to the checkpoint you want to resume training from
+RESUME_STATE_FILE: "Xresume_train_ckpt.pth"   # path to the checkpoint you want to resume training from
 
 RL:
   SUCCESS_REWARD: 2.5
@@ -86,11 +94,11 @@ RL:
     # distrib_backend: GLOO
     distrib_backend: NCCL
     # Initialize with pretrained weights
-    pretrained: True # False
+    pretrained: False # False
     # Visual encoder backbone
-    pretrained_weights: "/datasets/home/memmel/PointNav-VO/pretrained_ckpts/rl/no_tune/rl_no_tune.pth"
+    pretrained_weights: "X/datasets/home/memmel/PointNav-VO/pretrained_ckpts/rl/no_tune/rl_no_tune.pth"
     # Initialize just the visual encoder backbone with pretrained weights
-    pretrained_encoder: True # False
+    pretrained_encoder: False # False
     # Whether or not the visual encoder backbone will be trained.
     train_encoder: True # True
     # Whether or not to reset the critic linear layer
@@ -113,7 +121,7 @@ VO:
     omnidata_model_path: 'dpt/pretrained_models'
     cls_action: True
     hidden_size: 512
-    visual_type: ["rgb"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
+    visual_type: ["rgb", "depth", "top_down_view"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
     discretize_depth: "none" # choices: ['none', 'hard']
     discretized_depth_channels: 0
     dropout_p: 0.
@@ -125,7 +133,7 @@ VO:
     pretrained_type: "rgb_inv_joint"
     all_pretrained_ckpt: {
       "rgb_inv_joint": {
-        "all": "train_log/vit/seed_100-vo-noise_1-train-rgb_d-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-small-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_64-lr_0.0002-w_de_0.0-20220310_182528597377/checkpoints/ckpt_epoch_140.pth",
+        "all": "train_log/vit/seed_100-vo-noise_1-train-rgb_d-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-small-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_64-lr_0.0002-w_de_0.0-20220323_151007695553/checkpoints/ckpt_epoch_140.pth",
         },
     }
 
