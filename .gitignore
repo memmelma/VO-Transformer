@@ -145,6 +145,7 @@ train_log/
 
 # pretrained models
 pretrained_ckpts/
+pretrained_ckpts_HIDDEN/
 
 login_git.sh
 pretrained_models/
