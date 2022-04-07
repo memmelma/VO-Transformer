@@ -100,7 +100,7 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
     print(f"{fname} saved.")
     return
 
-def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='', omnidata_model_path='', cls_action=False, device='cpu'):
+def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='', custom_model_path='', cls_action=False, device='cpu'):
 
     supported_pretraining = dict({
         'small': ['in21k', 'dino'],
@@ -122,7 +122,7 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
                 cls_action = cls_action,
                 train_backbone=False,
                 pretrain_backbone=pretrain_backbone,
-                omnidata_model_path=omnidata_model_path,
+                custom_model_path=custom_model_path,
                 normalize_visual_inputs=True,
                 hidden_size=512,
                 output_dim=len(DEFAULT_DELTA_TYPES),
@@ -167,7 +167,7 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
 
     elif pretrain_backbone == 'omnidata':
         
-        assert os.path.exists(omnidata_model_path), f'Path {omnidata_model_path} does not exist!'
+        assert os.path.exists(custom_model_path), f'Path {custom_model_path} does not exist!'
 
         model_string = dict({
             'hybrid': 'vitb_rn50_384',
@@ -183,7 +183,7 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
 
         vit = DPTDepthModel(backbone=model_string[backbone])
 
-        pretrained_model_path = os.path.join(omnidata_model_path, model_path[backbone])
+        pretrained_model_path = os.path.join(custom_model_path, model_path[backbone])
         checkpoint = torch.load(pretrained_model_path, map_location=device)
         if 'state_dict' in checkpoint:
             state_dict = {}
@@ -263,7 +263,7 @@ if __name__ == '__main__':
     
     parser.add_argument('--pretrained_weights', default='', type=str,
         help="Path to pretrained weights to load.")
-    parser.add_argument('--omnidata_model_path', default='', type=str,
+    parser.add_argument('--custom_model_path', default='', type=str,
         help="Path to pretrained omnidata weights to load.")
             
     parser.add_argument("--image_path", default=None, type=str, help="Path of the image to load.")
@@ -286,7 +286,7 @@ if __name__ == '__main__':
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model = load_model(backbone=args.backbone, pretrain_backbone=args.pretrain_backbone, 
-                        pretrained_weights=args.pretrained_weights, omnidata_model_path=args.omnidata_model_path,
+                        pretrained_weights=args.pretrained_weights, custom_model_path=args.custom_model_path,
                         cls_action=args.cls_action, device=device) 
     for p in model.parameters():
         p.requires_grad = False
