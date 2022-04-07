@@ -100,7 +100,7 @@ def display_instances(image, mask, fname="test", figsize=(5, 5), blur=False, con
     print(f"{fname} saved.")
     return
 
-def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='', custom_model_path='', cls_action=False, device='cpu'):
+def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='', custom_model_path='', patch_size=16, cls_action=False, device='cpu'):
 
     supported_pretraining = dict({
         'small': ['in21k', 'dino'],
@@ -111,13 +111,17 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
 
     vit = None
 
-    assert pretrain_backbone in supported_pretraining[backbone] or pretrain_backbone == 'None', \
+    assert pretrain_backbone in supported_pretraining[backbone] or pretrain_backbone == None, \
     f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {supported_pretraining[backbone]}.'
+
+    assert patch_size == 16 or (patch_size == 8 and pretrain_backbone == 'dino'), \
+    f'patch_size "{patch_size}" no supported. Choose 16 or 8 (only if pretrain_backbone == dino).'
 
     if pretrained_weights != '':
         assert os.path.exists(pretrained_weights), f'Path {pretrained_weights} does not exist!'
     
         model = VisualOdometryTransformerActEmbed(
+                observation_space = ['rgb', 'depth'],
                 backbone=backbone,
                 cls_action = cls_action,
                 train_backbone=False,
@@ -158,8 +162,8 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
 
     elif pretrain_backbone == 'dino':
         model_string = dict({
-            'small': 'dino_vits16',
-            'base': 'dino_vitb16'
+            'small': f'dino_vits{patch_size}',
+            'base': f'dino_vitb{patch_size}'
         })
         vit = torch.hub.load('facebookresearch/dino:main', model_string[backbone])
 
@@ -204,6 +208,10 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
     return vit
 
 def prepare_timm_model(model):
+    # TODO
+    # add cls_token implementation if needed
+    # add rgb + depth
+    # add correct image preprocessing
     def get_last_selfattention(self, x):
         x = self.patch_embed(x)
         cls_token = self.cls_token.expand(x.shape[0], -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
@@ -256,7 +264,7 @@ if __name__ == '__main__':
         choices=['base', 'small', 'large', 'hybrid'], help='Backbone type.')
     parser.add_argument('--pretrain_backbone', default='in21k', type=str,
         choices=['in21k', 'dino', 'omnidata'], help='Backbone pretraining.')
-    parser.add_argument('--patch_size', default=16, type=int, help='Patch resolution of the model.')
+    parser.add_argument('--patch_size', default=8, type=int, help='Patch resolution of the model.')
     
     parser.add_argument('--cls_action', default=False, type=bool,
         help="Whether model embeds action in CLS token.")
@@ -267,7 +275,7 @@ if __name__ == '__main__':
         help="Path to pretrained omnidata weights to load.")
             
     parser.add_argument("--image_path", default=None, type=str, help="Path of the image to load.")
-    parser.add_argument("--image_size", default=(384, 384), type=int, nargs="+", help="Resize image.")
+    parser.add_argument("--image_size", default=(480, 480), type=int, nargs="+", help="Resize image.")
     parser.add_argument('--output_dir', default='imgs_attention_heads', help='Path where to save visualizations.')
     parser.add_argument("--threshold", type=float, default=None, help="""We visualize masks
         obtained by thresholding the self-attention maps to keep xx% of the mass.""")
@@ -275,18 +283,10 @@ if __name__ == '__main__':
         help="Visualize self-attention maps with matplotlib color scheme. This takes quite some time!")
     args = parser.parse_args()
 
-    # get filename and remove ending
-    fname_original = args.image_path.split('/')[-1].split('.')[0]
-    args.output_dir = os.path.join(args.output_dir,  f'{args.backbone}_{args.pretrain_backbone}{"_trained" if args.pretrained_weights != "" else ""}', fname_original)
-    
-    os.makedirs(args.output_dir, exist_ok=True)
-
-    with open(os.path.join(args.output_dir, 'config.txt'), 'w') as f:
-        print(vars(args), file=f)
-
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
     model = load_model(backbone=args.backbone, pretrain_backbone=args.pretrain_backbone, 
                         pretrained_weights=args.pretrained_weights, custom_model_path=args.custom_model_path,
+                        patch_size=args.patch_size,
                         cls_action=args.cls_action, device=device) 
     for p in model.parameters():
         p.requires_grad = False
@@ -299,21 +299,38 @@ if __name__ == '__main__':
         print("Please use the `--image_path` argument to indicate the path of the image you wish to visualize.")
         print("Since no image path have been provided, we take the first image in our paper.")
         response = requests.get("https://dl.fbaipublicfiles.com/dino/img.png")
-        img = Image.open(BytesIO(response.content))
-        img = img.convert('RGB')
+        img_ = Image.open(BytesIO(response.content))
+        img = img_.convert('RGB')
     elif os.path.isfile(args.image_path):
         with open(args.image_path, 'rb') as f:
-            img = Image.open(f)
-            img = img.convert('RGB')
+            img_ = Image.open(f)
+            img = img_.convert('RGB')
     else:
         print(f"Provided image path {args.image_path} is non valid.")
         sys.exit(1)
+    
+    # get filename and remove ending
+    fname_original = args.image_path.split('/')[-1].split('.')[0]
+    args.output_dir = os.path.join(args.output_dir,  f'{args.backbone}_{args.pretrain_backbone}{"_trained" if args.pretrained_weights != "" else ""}', fname_original)
+    
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    # save original image
+    fname = os.path.join(args.output_dir, "img.png")
+    img_.save(fname, 'PNG')
+    print(f"{fname} saved.")
+    
+    with open(os.path.join(args.output_dir, 'config.txt'), 'w') as f:
+        print(vars(args), file=f)
+    
     transform = pth_transforms.Compose([
         pth_transforms.Resize(args.image_size),
         pth_transforms.ToTensor(),
-        # pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
+        pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
-    img = transform(img) * 255.
+    img = transform(img)
+    # img = transform(img) * 255.
+    # ours requires * 255 but not conversion/normalization to RGB 
 
     # make the image divisible by the patch size
     w, h = img.shape[1] - img.shape[1] % args.patch_size, img.shape[2] - img.shape[2] % args.patch_size
@@ -344,9 +361,9 @@ if __name__ == '__main__':
 
     attentions = attentions.reshape(nh, w_featmap, h_featmap)
     attentions = nn.functional.interpolate(attentions.unsqueeze(0), scale_factor=args.patch_size, mode="nearest")[0].cpu().numpy()
-    
-    # save original image
-    fname = os.path.join(args.output_dir, "img.png")
+
+    # save transformed image
+    fname = os.path.join(args.output_dir, "transformed_img.png")
     torchvision.utils.save_image(img / 255., fname, normalize=False)
     print(f"{fname} saved.")
 
@@ -366,6 +383,12 @@ if __name__ == '__main__':
         fname = os.path.join(args.output_dir, "attn-head" + str(j) + ".png")
         plt.imsave(fname=fname, arr=attentions[j], format='png')
         print(f"{fname} saved.")
+
+    fname = os.path.join(args.output_dir, "attn-heads-sum.png")
+    print(np.sum(attentions,axis=0).min(),np.sum(attentions,axis=0).max())
+    # exit()
+    plt.imsave(fname=fname, arr=np.sum(attentions,axis=0), format='png')
+    print(f"{fname} saved.")
 
     if args.threshold is not None:
         image = skimage.io.imread(os.path.join(args.output_dir, "img.png"))
