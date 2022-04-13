@@ -88,6 +88,8 @@ class DDPPOTrainer(PPOTrainer):
         else:
             self.resume_state_file = None
 
+        self.best_spl = 0.0
+
         super().__init__(config)
 
     def _set_up_nav_obs_transformer(self) -> None:
@@ -271,8 +273,8 @@ class DDPPOTrainer(PPOTrainer):
             with torch.no_grad():
                 # apparently batch is on cpu and the weights of self._encoder are on cuda
                 # still doesn't work
-                for key in batch.keys():
-                    batch[key] = batch[key].to(self.device)
+                # for key in batch.keys():
+                #     batch[key] = batch[key].to(self.device)
 
                 batch["visual_features"] = self._encoder(batch)
 
@@ -609,7 +611,7 @@ class DDPPOTrainer(PPOTrainer):
                 )
             )
 
-        if update % self.config.CHECKPOINT_INTERVAL == 0:
+        if update % self.config.CHECKPOINT_INTERVAL == 0 or self.config.CHECKPOINT_INTERVAL == -1:
             # save infos for future analysis
             tmp_save_dict = {
                 "episode_ret": log_reward_list,
@@ -634,6 +636,44 @@ class DDPPOTrainer(PPOTrainer):
                 start_update=update,
                 prev_time=(time.time() - t_start) + prev_time,
             )
+            
+        # print(metrics['spl'], count_steps)
+        if metrics['spl'] > self.best_spl and self.config.CHECKPOINT_INTERVAL == -1:
+            self.best_spl = metrics['spl']  
+            
+            checkpoint_path = os.path.join(
+                                    self.config.CHECKPOINT_FOLDER,
+                                    "rl_tune_vo.pth".format(
+                                        count_checkpoints, update, int(count_steps)
+                                    ),
+                                )   
+            
+            torch.save(
+                dict(
+                    state_dict=self.agent.state_dict(),
+                    optim_state=self.agent.optimizer.state_dict(),
+                    lr_sched_state=lr_scheduler.state_dict(),
+                    config=self.config,
+                    requeue_stats=requeue_stats,
+                ),
+                checkpoint_path
+            )
+
+            log_path = os.path.join(
+                            self.config.CHECKPOINT_FOLDER,
+                            "ckpt_{}.update_{}.frames_{}.log".format(
+                                count_checkpoints, update, int(count_steps)
+                            ),
+                        )
+            with open(log_path, 'w') as f:
+                for k in metrics:
+                    f.write(f'{k}: {metrics[k]}')
+                f.close()
+
+            print(f'Saved {metrics["spl"]} at {checkpoint_path}!')
+
+        elif update % self.config.CHECKPOINT_INTERVAL == 0 and self.config.CHECKPOINT_INTERVAL != -1:
+
             torch.save(
                 dict(
                     state_dict=self.agent.state_dict(),
