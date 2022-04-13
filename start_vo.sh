@@ -12,6 +12,15 @@ export NUMBA_THREADING_LAYER=workqueue && \
 # login to git
 sh login_git.sh
 
+echo "Clean up..."
+# grep PID of python process listening to some port, kill the process, redirect kill --help to /dev/null if no PID found
+out=$(netstat -nltp | grep "/python" | awk '{print $NF}' | awk -F/ '{print $1}' | xargs kill -9 2> /dev/null)
+# check error code
+if ! [ "$?" -eq 123 ];
+    then
+        echo $out
+fi
+
 pip install einops
 
 # exec script

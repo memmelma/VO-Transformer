@@ -4,19 +4,20 @@ BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
 ENGINE_NAME: "efficient_ddppo"
 ENV_NAME: "NavRLEnv"
 SENSORS: ["DEPTH_SENSOR", "RGB_SENSOR"]
-NUM_UPDATES: 5000000
-NUM_PROCESSES: 1
+NUM_UPDATES: 2500
+NUM_PROCESSES: 16
 SIMULATOR_GPU_ID: 0
-TORCH_GPU_ID: 0
+TORCH_GPU_ID: 1
+N_GPUS: -1
 
 # logging settings
-LOG_DIR: "train_log"
-LOG_FILE: "train_log/train.log"
-INFO_DIR: "train_log/infos"
-CHECKPOINT_FOLDER: "train_log/checkpoints"
-TENSORBOARD_DIR: "train_log/tb"
-VIDEO_OPTION: ["wandb"]   # choices: ["none", "disk", "tensorboard"], "none" is used for storing image info but not generating video
-VIDEO_DIR: "train_log/videos"
+LOG_DIR: "train_log/rl/vit/"
+LOG_FILE: "{{LOG_DIR}}/train.log"
+INFO_DIR: "{{LOG_DIR}}/infos"
+CHECKPOINT_FOLDER: "{{LOG_DIR}}/checkpoints"
+TENSORBOARD_DIR: "{{LOG_DIR}}/tb"
+VIDEO_OPTION: ["wandb"]   # choices: ["none", "disk", "tensorboard", "wandb"], "none" is used for storing image info but not generating video
+VIDEO_DIR: "{{LOG_DIR}}/videos"
 CHECKPOINT_INTERVAL: -1
 LOG_INTERVAL: 1
 
@@ -25,7 +26,7 @@ DEBUG: False
 # evaluation settings
 EVAL:
   SPLIT: val
-  TEST_EPISODE_COUNT: 2 # -1
+  TEST_EPISODE_COUNT: -1
   SAVE_RANKED_IMGS: False
   RANK_TOP_K: 1
   RESIZE_TOPDOWN_MAP: False
@@ -33,8 +34,8 @@ EVAL:
 
   EVAL_WITH_CKPT: True
 
-  EVAL_CKPT_PATH: "pretrained_ckpts/rl/no_tune/rl_no_tune.pth"  # path to the checkpoint you want to evaluate with
   # EVAL_CKPT_PATH: "pretrained_ckpts/rl/tune_vo/rl_tune_vo.pth"  # path to the checkpoint you want to evaluate with
+  EVAL_CKPT_PATH: "replace with fine-tuned model"  # path to the checkpoint you want to evaluate with
 
 
 RESUME_TRAIN: False
@@ -63,7 +64,7 @@ RL:
     num_mini_batch: 2
     value_loss_coef: 0.5
     entropy_coef: 0.01
-    lr: 2.5e-4    # 1e-4 (tune with vo), 2.5e-4 (train from scratch)
+    lr: 1.e-4    # 1e-4 (tune with vo), 2.5e-4 (train from scratch)
     eps: 1e-5
     max_grad_norm: 0.2
     num_steps: 128
@@ -84,18 +85,18 @@ RL:
     # distrib_backend: GLOO
     distrib_backend: NCCL
     # Initialize with pretrained weights
-    pretrained: False
+    pretrained: True # False
     # Visual encoder backbone
-    pretrained_weights: "pretrained_ckpt.pth"
+    pretrained_weights: "/datasets/home/memmel/PointNav-VO/pretrained_ckpts/rl/no_tune/rl_no_tune.pth"
     # Initialize just the visual encoder backbone with pretrained weights
-    pretrained_encoder: False
+    pretrained_encoder: True # False
     # Whether or not the visual encoder backbone will be trained.
-    train_encoder: True
+    train_encoder: True # True
     # Whether or not to reset the critic linear layer
     reset_critic: False
 
 VO:
-  USE_VO_MODEL: False # False
+  USE_VO_MODEL: False
 
   VO_TYPE: "REGRESS"
 
@@ -104,32 +105,25 @@ VO:
   VIS_SIZE_H: 192
 
   REGRESS_MODEL:
-    # choices:
-    # [vo_cnn, vo_cnn_rgb, vo_cnn_wider, vo_cnn_deeper,
-    #  vo_cnn_act_embed, vo_cnn_wider_act_embed,
-    #  vo_cnn_rgb_d_dd, vo_cnn_rgb_d_top_down, vo_cnn_rgb_dd_top_down, vo_cnn_d_dd_top_down,
-    #  vo_cnn_rgb_d_dd_top_down]
-    name: "vo_cnn_rgb_d_dd_top_down"
-    visual_backbone: "resnet18" # 'small', 'base', 'large', 'hybrid'
+    name: "vo_transformer_act_embed"
+    visual_backbone: "small" # 'small', 'base', 'large', 'hybrid'
     train_backbone: True # True: also train the ViT encoder, False: freeze
-    pretrain_backbone: 'None' # 'in21k', 'dino' (in1k), 'omnidata', 'None'
-    omnidata_model_path: 'dpt/pretrained_models'
+    pretrain_backbone: 'in21k' # 'in21k', 'dino' (in1k), 'omnidata', 'None'
+    custom_model_path: 'dpt/pretrained_models'
     cls_action: True
     hidden_size: 512
-    visual_type: ["rgb", "depth", "discretized_depth", "top_down_view"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    discretize_depth: "hard" # choices: ['none', 'hard']
-    discretized_depth_channels: 10
-    dropout_p: 0.2
+    visual_type: ["rgb", "depth", "top_down_view"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
+    discretize_depth: "none" # choices: ['none', 'hard']
+    discretized_depth_channels: 0
+    dropout_p: 0.
 
-    regress_type: "sep_act"   # choices: ["unified_act", "sep_act"]
+    regress_type: "unified_act"   # choices: ["unified_act", "sep_act"]
     mode: "det"  # choices: ["rnd", "det"]
     rnd_mode_n: 10
     pretrained: True
-    pretrained_type: "rgb_d_dd_top_down_inv_joint"
+    pretrained_type: "rgb_inv_joint"
     all_pretrained_ckpt: {
-      "rgb_d_dd_top_down_inv_joint": {
-        "forward": "pretrained_ckpts/vo/act_forward.pth",
-        "left": "pretrained_ckpts/vo/act_left_right_inv_joint.pth",
-        "right": "pretrained_ckpts/vo/act_left_right_inv_joint.pth",
-      },
+      "rgb_inv_joint": {
+        "all": "train_log/vit/seed_100-vo-noise_1-train-rgb_d-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-small-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_64-lr_0.0002-w_de_0.0-20220323_151007695553/checkpoints/ckpt_epoch_140.pth",
+        },
     }

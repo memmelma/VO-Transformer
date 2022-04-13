@@ -18,9 +18,11 @@ cd ${POINTNAV_VO_ROOT} && \
 # login to git
 sh login_git.sh
 
+pip install einops
+
 # exec script
 python ${POINTNAV_VO_ROOT}/pointnav_vo/vo/dataset/generate_datasets.py \
---config_f ${POINTNAV_VO_ROOT}/configs/challenge_pointnav2021.local.rgbd.yaml \
+--config_f ${POINTNAV_VO_ROOT}/configs/point_nav_habitat_challenge_2020.yaml \
 --train_scene_dir ./dataset/habitat_datasets/pointnav/gibson/v2/train/content  \
 --val_scene_dir ./dataset/habitat_datasets/pointnav/gibson/v2/val/content \
 --data_version v2 \
@@ -28,7 +30,7 @@ python ${POINTNAV_VO_ROOT}/pointnav_vo/vo/dataset/generate_datasets.py \
 --vis_size_h 192 \
 --obs_transform none \
 --rnd_p 1.0 \
---save_dir /scratch/memmel/dataset/ \
+--save_dir /scratch/memmel/dataset/new \
 $@
 # --N_list 143821 --act_type 1
 # --N_list 106179 --act_type 2
