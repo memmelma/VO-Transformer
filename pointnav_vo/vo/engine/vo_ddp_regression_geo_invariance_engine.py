@@ -33,6 +33,8 @@ from pointnav_vo.vo.dataset.regression_geo_invariance_iter_dataset import (
 )
 from pointnav_vo.vo.common.common_vars import *
 
+from pointnav_vo.utils.config_utils import update_config_log
+
 TRAIN_NUM_WORKERS =  multiprocessing.cpu_count() // 2 # 20
 EVAL_NUM_WORKERS = 10
 PREFETCH_FACTOR = 2
@@ -122,7 +124,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
 
     def setup(self, rank, world_size):
         os.environ['MASTER_ADDR'] = 'localhost'
-        os.environ['MASTER_PORT'] = '12355'
+        os.environ['MASTER_PORT'] = '12356'
 
         # initialize the process group
         dist.init_process_group("gloo", rank=rank, world_size=world_size)
@@ -185,7 +187,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 random.setstate(resume_ckpt["rnd_state"])
                 np.random.set_state(resume_ckpt["np_rnd_state"])
                 torch.set_rng_state(resume_ckpt["torch_rnd_state"])
-                torch.cuda.set_rng_state_all(resume_ckpt["torch_cuda_rnd_state"])
+                # torch.cuda.set_rng_state_all(resume_ckpt["torch_cuda_rnd_state"])
 
         nbatches = np.ceil(len(self.train_loader.dataset) / self._train_batch_size)
 
@@ -211,9 +213,10 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                         learning_rate = self.config.VO.TRAIN.lr * (epoch)/self.config.VO.TRAIN.warm_up_steps
                         for i in range(len(self.optimizer[act].param_groups)):
                             self.optimizer[act].param_groups[i]["lr"] = learning_rate
-                # step learning rate scheduler before gradient update since we initialize it after first epoch
-                if self.scheduler != None and self.config.VO.TRAIN.scheduler == 'cosine':
-                    self.scheduler.step()
+                
+                    # step learning rate scheduler before gradient update since we initialize it after first epoch
+                    if self.scheduler != None and self.config.VO.TRAIN.scheduler == 'cosine':
+                        self.scheduler[act].step()
 
                 with tqdm(total=nbatches, disable=False if rank == 0 else True) as pbar:
                     
@@ -402,10 +405,11 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                                             abs_diff_geo_inverse_pos,
                                         )
 
-                # setup learning rate scheduler
+                # setup learning rate scheduler setup after first epoch since we don't know 'n_batches' yet 
                 if self.scheduler == None and self.config.VO.TRAIN.scheduler == 'cosine':
                     T_max = nbatches * self.config.VO.TRAIN.epochs - self.config.VO.TRAIN.warm_up_steps
-                    print(T_max)
+                    print('T_max', T_max)
+                    self.scheduler = {}
                     for act in self._act_list:
                         self.scheduler[act] = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer[act], T_max, eta_min=0, last_epoch=-1, verbose=False)
                     
@@ -1097,7 +1101,15 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 logger.info(f"Resume training from {self.config.RESUME_STATE_FILE}")
                 resume_ckpt = torch.load(self.config.RESUME_STATE_FILE)
                 for act in self._act_list:
-                    self.vo_model[act].load_state_dict(resume_ckpt["model_states"][act])
+                    # self.vo_model[act].load_state_dict(resume_ckpt["model_states"][act])
+                
+                    if "model_state" in resume_ckpt:
+                        self.vo_model[act].load_state_dict(resume_ckpt["model_state"])
+                    elif "model_states" in resume_ckpt:
+                        self.vo_model[act].load_state_dict(
+                            self.convert_dataparallel_weights(resume_ckpt["model_states"][act])
+                        )
+
             elif self.config.VO.MODEL.pretrained:
                 for act in self._act_list:
                     act_str = ACT_IDX2NAME[act]
@@ -1108,19 +1120,11 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                         self.config.VO.MODEL.pretrained_ckpt[act_str]
                     )
 
-                    def convert_dataparallel_weights(weights):
-                        converted_weights = {}
-                        keys = weights.keys()
-                        for key in keys:
-                            new_key = key.split("module.")[-1]
-                            converted_weights[new_key] = weights[key]
-                        return converted_weights
-
                     if "model_state" in pretrained_ckpt:
                         self.vo_model[act].load_state_dict(pretrained_ckpt["model_state"])
                     elif "model_states" in pretrained_ckpt:
                         self.vo_model[act].load_state_dict(
-                            convert_dataparallel_weights(pretrained_ckpt["model_states"][act])
+                            self.convert_dataparallel_weights(pretrained_ckpt["model_states"][act])
                         )
 
                     # if "model_state" in pretrained_ckpt:
@@ -1738,7 +1742,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
         }
 
         if self.scheduler != None and self.config.VO.TRAIN.scheduler == 'cosine':
-            state["scheduler_states"] = self.scheduler.state_dict()
+            state["scheduler_states"] = {k: self.scheduler[k].state_dict() for k in self._act_list}
            
         try:
             torch.save(
@@ -1751,3 +1755,11 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             print(f"\ntotal size: {sys.getsizeof(state)}")
             for k, v in state.items():
                 print(f"size of {k}: {sys.getsizeof(v)}")
+
+    def convert_dataparallel_weights(self, weights):
+        converted_weights = {}
+        keys = weights.keys()
+        for key in keys:
+            new_key = key.split("module.")[-1]
+            converted_weights[new_key] = weights[key]
+        return converted_weights
