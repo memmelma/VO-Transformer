@@ -67,7 +67,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             'large': ['in21k', 'omnidata']
         })
 
-        assert pretrain_backbone in self.supported_pretraining[backbone] or pretrain_backbone == None, \
+        assert pretrain_backbone in self.supported_pretraining[backbone] or pretrain_backbone == None or pretrain_backbone == 'None', \
         f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {self.supported_pretraining[backbone]}.'
 
         if self.pretrain_backbone == 'in21k':
@@ -371,6 +371,26 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
         if "rgb" in observation_pairs.keys() and "depth" in observation_pairs.keys():
 
+            # # save observations
+            # depth = observation_pairs['depth']
+            # depth = torch.cat((depth[:,:,:,:depth.shape[-1]//2], depth[:,:,:,depth.shape[-1]//2:]),dim=1)
+            # depth = depth.expand(-1, -1, -1, 3)
+
+            # rgb = observation_pairs['rgb']
+            # rgb = torch.cat((rgb[:,:,:,:rgb.shape[-1]//2], rgb[:,:,:,rgb.shape[-1]//2:]),dim=1)
+            # rgb = rgb / 255.0
+
+            # x = torch.cat((rgb,depth),dim=1)
+
+            # import torchvision
+            # rnd = torch.randint(0, rgb.shape[0]-1, (1,)).item()
+            # cutoff = observation_pairs['depth'].shape[-1]//2
+            # torchvision.utils.save_image(observation_pairs['rgb'][rnd,:,:,3:].unsqueeze(0).permute(0,3,1,2), f'imgs_debug/img_rnd_{rnd}_rgb_t0_nn.png', normalize=True)
+            # torchvision.utils.save_image(observation_pairs['rgb'][rnd,:,:,:3].unsqueeze(0).permute(0,3,1,2), f'imgs_debug/img_rnd_{rnd}_rgb_t1_nn.png', normalize=True)
+            # torchvision.utils.save_image(observation_pairs['depth'][rnd,:,:,:1].unsqueeze(0).permute(0,3,1,2), f'imgs_debug/img_rnd_{rnd}_depth_t0_nn.png', normalize=False)
+            # torchvision.utils.save_image(observation_pairs['depth'][rnd,:,:,1:].unsqueeze(0).permute(0,3,1,2), f'imgs_debug/img_rnd_{rnd}_depth_t1_nn.png', normalize=False)
+
+            # forward pass
             depth = observation_pairs['depth']
             depth = torch.cat((depth[:,:,:,:depth.shape[-1]//2], depth[:,:,:,depth.shape[-1]//2:]),dim=1)
             depth = depth.expand(-1, -1, -1, 3)
@@ -382,12 +402,6 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             rgb = rgb / 255.0
 
             x = torch.cat((rgb,depth),dim=2)
-            
-            # # uncomment permutes and replace
-            # #   x = torch.cat((rgb,depth),dim=1)
-            # import torchvision
-            # for i, (x_i, a_i) in enumerate(zip(x, actions)):
-            #     torchvision.utils.save_image(x_i.permute(2,0,1), f'imgs_debug/img_{i}_act_{a_i}.png', normalize=False)
 
         elif "rgb" in observation_pairs.keys():
             

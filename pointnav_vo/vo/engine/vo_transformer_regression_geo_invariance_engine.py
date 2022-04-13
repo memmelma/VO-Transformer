@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 
 from habitat import Config
+import torch
 import torch.optim as optim
 from pointnav_vo.utils.baseline_registry import baseline_registry
 from pointnav_vo.vo.engine.vo_ddp_regression_geo_invariance_engine import VODDPRegressionGeometricInvarianceEngine

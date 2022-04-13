@@ -230,7 +230,7 @@ class PPOTrainer(BaseRLTrainerWithVO):
                             local_delta_states_std,
                             extra_infos,
                         ) = self._compute_local_delta_states_from_vo(
-                            self._prev_obs[i], observations[i], actions[i].cpu().item(),
+                            self._prev_obs[i], observations[i], actions[i],
                         )
                     else:
                         tmp_gt = np.array(
@@ -390,7 +390,7 @@ class PPOTrainer(BaseRLTrainerWithVO):
             lr_lambda=lambda x: linear_decay(x, self.config.NUM_UPDATES),
         )
 
-        with TensorboardWriter(
+        with WandbWriter(
             self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs
         ) as writer:
             for update in range(self.config.NUM_UPDATES):
@@ -858,7 +858,7 @@ class PPOTrainer(BaseRLTrainerWithVO):
                             ) = self._compute_local_delta_states_from_vo(
                                 prev_obs[i],
                                 cur_obs,
-                                actions[i][0].item(),
+                                actions[i],#[0].item(),
                                 vis_video=len(self.config.VIDEO_OPTION) > 0,
                             )
                         else:

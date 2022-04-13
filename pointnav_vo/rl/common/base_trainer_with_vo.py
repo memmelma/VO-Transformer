@@ -81,7 +81,7 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                     cls_action=all_cfg.VO.REGRESS_MODEL.cls_action,
                     train_backbone=all_cfg.VO.REGRESS_MODEL.train_backbone,
                     pretrain_backbone=all_cfg.VO.REGRESS_MODEL.pretrain_backbone,
-                    omnidata_model_path=all_cfg.VO.REGRESS_MODEL.omnidata_model_path,
+                    custom_model_path=all_cfg.VO.REGRESS_MODEL.custom_model_path,
                 )
 
                 self.vo_model[k].to(self.device)
@@ -308,13 +308,13 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                     self.vo_model[tmp_key].eval()
                     if "transformer" in self.config.VO.REGRESS_MODEL.name:
                         if "act_embed" in self.config.VO.REGRESS_MODEL.name:
-                            actions = torch.Tensor([act]).long().to(rgb_pair.device)
-                            tmp_deltas, pred_depth = self.vo_model[tmp_key](obs_pairs, actions)
+                            actions = torch.Tensor([act]).long().to(self.device)
+                            tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs, actions)
                         else:
-                            tmp_deltas, pred_depth = self.vo_model[tmp_key](obs_pairs)
+                            tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs)
                     else:
                         if "act_embed" in self.config.VO.REGRESS_MODEL.name:
-                            actions = torch.Tensor([act]).long().to(rgb_pair.device)
+                            actions = torch.Tensor([act]).long().to(self.device)
                             tmp_deltas = self.vo_model[tmp_key](obs_pairs, actions)
                         else:
                             tmp_deltas = self.vo_model[tmp_key](obs_pairs)
@@ -325,9 +325,9 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                     self.vo_model[tmp_key].train()
                     tmp_all_local_delta_states = []
                     for tmp_i in range(self.config.VO.REGRESS_MODEL.rnd_mode_n):
-                        tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs).cpu().numpy()[0, :]
+                        tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs)
                         tmp_deltas = (
-                            tmp_deltas
+                            tmp_deltas.cpu().numpy()[0, :]
                         )
                         tmp_all_local_delta_states.append(tmp_deltas)
                     local_delta_states = list(
@@ -340,5 +340,5 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                     pass
             else:
                 raise NotImplementedError
-
+        
         return local_delta_states, local_delta_states_std, extra_infos
