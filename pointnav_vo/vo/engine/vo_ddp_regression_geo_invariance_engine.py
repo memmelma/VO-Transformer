@@ -214,11 +214,16 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                         learning_rate = self.config.VO.TRAIN.lr * (epoch)/self.config.VO.TRAIN.warm_up_steps
                         for i in range(len(self.optimizer[act].param_groups)):
                             self.optimizer[act].param_groups[i]["lr"] = learning_rate
-                
+                        if self.config.DEBUG:
+                            print(f'warmup lr {self.optimizer[act].param_groups[i]["lr"]}')
+
                     # step learning rate scheduler before gradient update since we initialize it after first epoch
                     if self.scheduler != None and self.config.VO.TRAIN.scheduler == 'cosine':
                         self.scheduler[act].step()
-                        print(f'new lr {self.optimizer[act].param_groups[i]["lr"]}')
+                        if self.config.DEBUG:
+                            for i in range(len(self.optimizer[act].param_groups)):
+                                print(f'new lr {self.optimizer[act].param_groups[i]["lr"]}')
+                                break
 
                 with tqdm(total=nbatches, disable=False if rank == 0 else True) as pbar:
                     
