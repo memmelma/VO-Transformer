@@ -24,6 +24,7 @@ import habitat
 from habitat import Config, logger
 
 from pointnav_vo.vo.engine.vo_cnn_engine import VOCNNBaseEngine
+import wandb
 from pointnav_vo.utils.wandb_utils import WandbWriter
 from pointnav_vo.utils.baseline_registry import baseline_registry
 from pointnav_vo.vo.dataset.regression_geo_invariance_iter_dataset import (
@@ -182,7 +183,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
         if self.config.RESUME_TRAIN:
             resume_ckpt = torch.load(self.config.RESUME_STATE_FILE)
             if "epoch" in resume_ckpt:
-                start_epoch = resume_ckpt["epoch"]
+                start_epoch = resume_ckpt["epoch"] # + 1 eliminates wandb issue of logging twice w/ same epoch but skips one log file
             if "rnd_state" in resume_ckpt:
                 random.setstate(resume_ckpt["rnd_state"])
                 np.random.set_state(resume_ckpt["np_rnd_state"])
@@ -217,6 +218,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                     # step learning rate scheduler before gradient update since we initialize it after first epoch
                     if self.scheduler != None and self.config.VO.TRAIN.scheduler == 'cosine':
                         self.scheduler[act].step()
+                        print(f'new lr {self.optimizer[act].param_groups[i]["lr"]}')
 
                 with tqdm(total=nbatches, disable=False if rank == 0 else True) as pbar:
                     
@@ -407,11 +409,11 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
 
                 # setup learning rate scheduler setup after first epoch since we don't know 'n_batches' yet 
                 if self.scheduler == None and self.config.VO.TRAIN.scheduler == 'cosine':
-                    T_max = nbatches * self.config.VO.TRAIN.epochs - self.config.VO.TRAIN.warm_up_steps
+                    T_max = self.config.VO.TRAIN.epochs - self.config.VO.TRAIN.warm_up_steps
                     print('T_max', T_max)
                     self.scheduler = {}
                     for act in self._act_list:
-                        self.scheduler[act] = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer[act], T_max, eta_min=0, last_epoch=-1, verbose=False)
+                        self.scheduler[act] = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer[act], T_max, eta_min=1e-6, last_epoch=-1, verbose=False)
                     
                     if self.config.RESUME_TRAIN:
                         resume_ckpt = torch.load(self.config.RESUME_STATE_FILE)        
@@ -1729,7 +1731,12 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
             )
 
     def _save_ckpt(self, epoch):
- 
+        
+        if self.config.DEBUG == False:
+            self.config.defrost()
+            self.config.WANDB_RUN_ID = wandb.run.id
+            self.config.freeze()
+
         state = {
             "epoch": epoch,
             "config": self.config,
