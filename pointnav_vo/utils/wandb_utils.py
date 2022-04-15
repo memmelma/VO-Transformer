@@ -18,7 +18,7 @@ class WandbWriter:
         if self.use_wandb:
             os.system("wandb login --relogin $WANDB_API_KEY")
             
-            if hasattr(config, "WANDB_RUN_ID"):
+            if hasattr(config, "WANDB_RUN_ID") and config.RESUME_TRAIN:
                 self.run = wandb.init(project="vo", entity="memmelma", id=config.WANDB_RUN_ID, resume="must",
                                         mode="disabled" if config.TASK_CONFIG.DATASET.SPLIT != 'train' else None)
             else:
