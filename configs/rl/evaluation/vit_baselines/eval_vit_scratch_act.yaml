@@ -103,7 +103,7 @@ RL:
     reset_critic: False
 
 VO:
-  USE_VO_MODEL: False
+  USE_VO_MODEL: True
 
   VO_TYPE: "REGRESS"
 
@@ -112,53 +112,36 @@ VO:
   VIS_SIZE_H: 192
 
   REGRESS_MODEL:
-    name: "vo_transformer_act_embed"
-    visual_backbone: "small" # 'small', 'base', 'large', 'hybrid'
-    train_backbone: True # True: also train the ViT encoder, False: freeze
-    pretrain_backbone: 'in21k' # 'in21k', 'dino' (in1k), 'omnidata', 'None'
-    custom_model_path: 'dpt/pretrained_models'
-    cls_action: True
-    hidden_size: 512
-    visual_type: ["rgb", "depth", "top_down_view"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    discretize_depth: "none" # choices: ['none', 'hard']
-    discretized_depth_channels: 0
-    dropout_p: 0.
 
+    visual_type: ["rgb", "top_down_view"]
     regress_type: "unified_act"   # choices: ["unified_act", "sep_act"]
     mode: "det"  # choices: ["rnd", "det"]
     rnd_mode_n: 10
     pretrained: True
-    pretrained_type: "rgb_inv_joint"
+    pretrained_type: "regress_all"
     all_pretrained_ckpt: {
-      "rgb_inv_joint": {
-        "all": "train_log/vit/seed_100-vo-noise_1-train-rgb_d-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-small-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_64-lr_0.0002-w_de_0.0-20220310_182528597377/checkpoints/ckpt_epoch_140.pth",
+      "regress_all": {
+        "all": "train_log/vit/vo_vit_scratch_act_dt_20220409_220557338016_s_1/checkpoints/resume_20220411_155406924952/checkpoints/ckpt_epoch_150.pth",
         },
     }
 
-    # # choices:
-    # # [vo_cnn, vo_cnn_rgb, vo_cnn_wider, vo_cnn_deeper,
-    # #  vo_cnn_act_embed, vo_cnn_wider_act_embed,
-    # #  vo_cnn_rgb_d_dd, vo_cnn_rgb_d_top_down, vo_cnn_rgb_dd_top_down, vo_cnn_d_dd_top_down,
-    # #  vo_cnn_rgb_d_dd_top_down]
-    # name: "vo_cnn_rgb_d_dd_top_down"
-    # visual_backbone: "resnet18"
-    # hidden_size: 512
-    # visual_type: ["rgb", "depth", "discretized_depth", "top_down_view"]  # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    # dropout_p: 0.2
 
-    # discretize_depth: "hard"  # choices: ['none', 'hard']
+    ### model params from vo_*.yaml ###
+
+    name: "vo_transformer_act_embed"
+    # choices: 'small', 'base', 'large', 'hybrid'
+    visual_backbone: "small" 
+    
+    train_backbone: True # True: also train the ViT encoder, False: freeze
+    # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
+    pretrain_backbone: 'None'
+    cls_action: True
+
+    hidden_size: 512
+    custom_model_path: 'dpt/pretrained_models'
+    # choices: ['none', 'hard']
+    discretize_depth: "none"
     # discretized_depth_channels: 10
-
-    # regress_type: "sep_act"   # choices: ["unified_act", "sep_act"]
-    # mode: "det"  # choices: ["rnd", "det"]
-    # rnd_mode_n: 10
-    # pretrained: True
-    # pretrained_type: "rgb_d_dd_top_down_inv_joint"
-    # all_pretrained_ckpt: {
-    #   "rgb_d_dd_top_down_inv_joint": {
-    #     "forward": "pretrained_ckpts/vo/act_forward.pth",
-    #     "left": "pretrained_ckpts/vo/act_left_right_inv_joint.pth",
-    #     "right": "pretrained_ckpts/vo/act_left_right_inv_joint.pth",
-    #   },
-    # }
-
+    discretized_depth_channels: 0
+    top_down_center_crop: False
+    dropout_p: 0.

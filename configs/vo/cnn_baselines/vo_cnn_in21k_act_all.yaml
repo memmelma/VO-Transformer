@@ -16,7 +16,7 @@ N_GPUS: -1 # -1 equals all available GPUs
 DEBUG: False
 
 RESUME_TRAIN: True
-RESUME_STATE_FILE: "train_log/cnn/vo_cnn_in21k_act_all_dt_20220407_154241817561_s_1/checkpoints/ckpt_epoch_85.pth"   # path to the checkpoint you want to resume training from
+RESUME_STATE_FILE: "train_log/cnn/vo_cnn_in21k_act_all_dt_20220407_154241817561_s_1/checkpoints/resume_20220414_010506902240/checkpoints/ckpt_epoch_112.pth"   # path to the checkpoint you want to resume training from
 
 # evaluation settings
 EVAL:

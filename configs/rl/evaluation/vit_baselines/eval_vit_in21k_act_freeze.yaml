@@ -12,7 +12,7 @@ ENGINE_NAME: "efficient_ddppo"
 ENV_NAME: "NavRLEnv"
 SENSORS: ["DEPTH_SENSOR", "RGB_SENSOR"]
 NUM_UPDATES: 15000
-NUM_PROCESSES: 14
+NUM_PROCESSES: 8
 SIMULATOR_GPU_ID: 0
 TORCH_GPU_ID: 0
 N_GPUS: 1
@@ -42,8 +42,7 @@ EVAL:
   EVAL_WITH_CKPT: True
 
   # EVAL_CKPT_PATH: "pretrained_ckpts/rl/tune_vo/rl_tune_vo.pth"  # path to the checkpoint you want to evaluate with
-  # EVAL_CKPT_PATH : "train_log/rl/vit/seed_100-rl-train-vo_1-noise_rgb_1_depth_1_act_1-depth_sensor_rgb_sensor-model_resnet_rnn_policy-visual_resnet18-rnn_LSTM_2-updates_15000-minibatch_2-ngpu_8-proc_16-lr_0.0001-20220329_123010262981/checkpoints/ckpt_97.update_4850.frames_9934848.pth"  # path to the checkpoint you want to evaluate with
-  EVAL_CKPT_PATH : "train_log/rl/vit/seed_100-rl-train-vo_1-noise_rgb_1_depth_1_act_1-depth_sensor_rgb_sensor-model_resnet_rnn_policy-visual_resnet18-rnn_LSTM_2-updates_5000000-minibatch_2-ngpu_8-proc_16-lr_0.0001-20220315_153403530431/checkpoints/ckpt_3.update_150.frames_2462976.pth"  # path to the checkpoint you want to evaluate with
+  EVAL_CKPT_PATH: "/datasets/home/memmel/PointNav-VO/pretrained_ckpts/rl/no_tune/rl_no_tune.pth"  # path to the checkpoint you want to evaluate with
 
 
 RESUME_TRAIN: False
@@ -93,11 +92,11 @@ RL:
     # distrib_backend: GLOO
     distrib_backend: NCCL
     # Initialize with pretrained weights
-    pretrained: False
+    pretrained: True
     # Visual encoder backbone
     pretrained_weights: "/datasets/home/memmel/PointNav-VO/pretrained_ckpts/rl/no_tune/rl_no_tune.pth"
     # Initialize just the visual encoder backbone with pretrained weights
-    pretrained_encoder: False
+    pretrained_encoder: True
     # Whether or not the visual encoder backbone will be trained.
     train_encoder: True
     # Whether or not to reset the critic linear layer
@@ -113,25 +112,36 @@ VO:
   VIS_SIZE_H: 192
 
   REGRESS_MODEL:
-    name: "vo_transformer_act_embed"
-    visual_backbone: "small" # 'small', 'base', 'large', 'hybrid'
-    train_backbone: True # True: also train the ViT encoder, False: freeze
-    pretrain_backbone: 'in21k' # 'in21k', 'dino' (in1k), 'omnidata', 'None'
-    custom_model_path: 'dpt/pretrained_models'
-    cls_action: True
-    hidden_size: 512
-    visual_type: ["rgb", "top_down_view"] # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    discretize_depth: "none" # choices: ['none', 'hard']
-    discretized_depth_channels: 0
-    dropout_p: 0.
 
+    visual_type: ["rgb", "top_down_view"]
     regress_type: "unified_act"   # choices: ["unified_act", "sep_act"]
     mode: "det"  # choices: ["rnd", "det"]
     rnd_mode_n: 10
     pretrained: True
-    pretrained_type: "rgb_inv_joint"
+    pretrained_type: "regress_all"
     all_pretrained_ckpt: {
-      "rgb_inv_joint": {
-        "all": "train_log/vit/seed_100-vo-noise_1-train-rgb-dd_none_0-m_cen_0-act_-1-model_vo_transformer_act_embed-small-geo_inv_joint_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0-e_150-b_64-lr_0.0002-w_de_0.0-20220302_205716413920/checkpoints/ckpt_epoch_140.pth",
+      "regress_all": {
+        "all": "train_log/vit/vo_vit_in21k_act_freeze_dt_20220409_051040808336_s_1/checkpoints/resume_20220412_090115707128/checkpoints/resume_20220412_103118135938/checkpoints/ckpt_epoch_150.pth",
         },
     }
+
+
+    ### model params from vo_*.yaml ###
+
+    name: "vo_transformer_act_embed"
+    # choices: 'small', 'base', 'large', 'hybrid'
+    visual_backbone: "small" 
+    
+    train_backbone: False # True: also train the ViT encoder, False: freeze
+    # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
+    pretrain_backbone: 'in21k'
+    cls_action: True
+
+    hidden_size: 512
+    custom_model_path: 'dpt/pretrained_models'
+    # choices: ['none', 'hard']
+    discretize_depth: "none"
+    # discretized_depth_channels: 10
+    discretized_depth_channels: 0
+    top_down_center_crop: False
+    dropout_p: 0.
