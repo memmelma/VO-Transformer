@@ -38,7 +38,7 @@ VO:
     scheduler: "none"
     eps: 1.0e-8
     batch_size: 224
-    epochs: 170
+    epochs: 85
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
     log_grad: False
@@ -87,8 +87,8 @@ VO:
     # set pretrained to True if you want to fine-tune some checkpoints
     pretrained: True
     pretrained_ckpt: {
-      "left": "train_log/cnn/seed_100-vo-noise_1-train-rgb_d_dd_proj-dd_hard_10-m_cen_1-act_2-model_vo_cnn_rgb_d_dd_top_down-resnet50-geo_inv_aug_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0.2-e_150-b_256-lr_0.0002-w_de_0.0-20220310_182401169009/checkpoints/ckpt_epoch_140.pth",
-      "right": "train_log/cnn/seed_100-vo-noise_1-train-rgb_d_dd_proj-dd_hard_10-m_cen_1-act_3-model_vo_cnn_rgb_d_dd_top_down-resnet50-geo_inv_aug_inv_w_1-l_mult_fix_1-1.0_1.0_1.0-dpout_0.2-e_150-b_256-lr_0.0002-w_de_0.0-20220310_182401619237/checkpoints/ckpt_epoch_140.pth",
+      "left": "train_log/cnn/vo_cnn_in21k_tl_dt_20220415_085630807761_s_1/checkpoints/ckpt_epoch_75.pth",
+      "right": "train_log/cnn/vo_cnn_in21k_tr_dt_20220415_085622818709_s_1/checkpoints/ckpt_epoch_75.pth",
     }
 
   REGRESSION:

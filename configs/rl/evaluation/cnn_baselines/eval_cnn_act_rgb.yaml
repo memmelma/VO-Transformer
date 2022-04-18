@@ -113,7 +113,9 @@ VO:
 
   REGRESS_MODEL:
 
-    visual_type: ["rgb", "top_down_view"]
+    # TODO: adding "top_down_view" causes model load to fail due to increased input dimension
+    # TODO: find fix to produce videos even for CNN architecture
+    visual_type: ["rgb"]
     regress_type: "unified_act"   # choices: ["unified_act", "sep_act"]
     mode: "det"  # choices: ["rnd", "det"]
     rnd_mode_n: 10
