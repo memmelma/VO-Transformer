@@ -118,10 +118,13 @@ VO:
     mode: "det"  # choices: ["rnd", "det"]
     rnd_mode_n: 10
     pretrained: True
-    pretrained_type: "regress_all"
+    pretrained_type: "regress_all_best"
     all_pretrained_ckpt: {
       "regress_all": {
         "all": "train_log/cnn/vo_cnn_in21k_act_all_dt_20220407_154241817561_s_1/checkpoints/resume_20220414_010506902240/checkpoints/resume_20220415_085620932761/checkpoints/ckpt_epoch_150.pth",
+        },
+      "regress_all_best": { 
+        "all": "train_log/cnn/vo_cnn_in21k_act_all_dt_20220407_154241817561_s_1/checkpoints/resume_20220414_010506902240/checkpoints/resume_20220415_085620932761/checkpoints/ckpt_epoch_142.pth",
         },
     }
 
