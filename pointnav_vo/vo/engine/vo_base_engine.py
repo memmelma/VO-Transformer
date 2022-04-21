@@ -18,8 +18,8 @@ from pointnav_vo.utils.baseline_registry import baseline_registry
 from pointnav_vo.vo.common.common_vars import *
 
 
-@baseline_registry.register_vo_engine(name="vo_cnn_base_engine")
-class VOCNNBaseEngine:
+@baseline_registry.register_vo_engine(name="vo_base_engine")
+class VOBaseEngine:
     def __init__(
         self, config: Config = None, run_type: str = "train", verbose: bool = True
     ):

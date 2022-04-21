@@ -4,6 +4,7 @@
 import os
 import contextlib
 import joblib
+import warnings
 import random
 import time
 import copy
@@ -19,11 +20,11 @@ import torch.multiprocessing as mp
 from torch import autograd
 from torch.utils.data.dataloader import DataLoader
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.cuda.amp import autocast, GradScaler
 
 import habitat
 from habitat import Config, logger
 
-from pointnav_vo.vo.engine.vo_cnn_engine import VOCNNBaseEngine
 from pointnav_vo.utils.wandb_utils import WandbWriter
 from pointnav_vo.utils.baseline_registry import baseline_registry
 from pointnav_vo.vo.dataset.regression_geo_invariance_iter_dataset import (
@@ -32,24 +33,26 @@ from pointnav_vo.vo.dataset.regression_geo_invariance_iter_dataset import (
     fast_collate_func,
 )
 from pointnav_vo.vo.common.common_vars import *
-
 from pointnav_vo.utils.config_utils import update_config_log
+from pointnav_vo.utils.baseline_registry import baseline_registry
+from pointnav_vo.vo.engine.vo_base_engine import VOBaseEngine
 
-TRAIN_NUM_WORKERS =  multiprocessing.cpu_count() // 2 # 20
+TRAIN_NUM_WORKERS =  multiprocessing.cpu_count() // 2
 EVAL_NUM_WORKERS = 10
-PREFETCH_FACTOR = 2
-TIMEOUT = 10 * 60 # 5 * 60
+# PREFETCH_FACTOR = 2
+TIMEOUT = 10 * 60
 
 DELTA_DIM = 3
 
-from torch.cuda.amp import autocast, GradScaler
+ENGINE_NAME = "vo_ddp_regression_geo_invariance_engine"
 
-class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
+@baseline_registry.register_vo_engine(name=ENGINE_NAME)
+class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
     
-    def __init__(self, config: Config = None, run_type: str = "train", engine_name: str = "", verbose: bool = True):
+    def __init__(self, config: Config = None, run_type: str = "train", verbose: bool = True):
 
         self._run_type = run_type
-        self.engine_name = engine_name
+        self.engine_name = ENGINE_NAME
         self._pin_memory_flag = False
 
         if torch.cuda.is_available():
@@ -124,7 +127,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
 
     def setup(self, rank, world_size):
         os.environ['MASTER_ADDR'] = 'localhost'
-        os.environ['MASTER_PORT'] = '12356'
+        os.environ['MASTER_PORT'] = '12355'
 
         # initialize the process group
         dist.init_process_group("gloo", rank=rank, world_size=world_size)
@@ -160,7 +163,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
 
         trainer._set_up_model()
         if trainer._run_type == "train":
-            trainer. _set_up_optimizer()
+            trainer._set_up_optimizer()
         
         # vo_model = trainer.vo_model[trainer._act_type].to(rank)
         # for act in trainer._act_list:
@@ -408,7 +411,6 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                 # setup learning rate scheduler setup after first epoch since we don't know 'n_batches' yet 
                 if self.scheduler == None and self.config.VO.TRAIN.scheduler == 'cosine':
                     T_max = nbatches * self.config.VO.TRAIN.epochs - self.config.VO.TRAIN.warm_up_steps
-                    print('T_max', T_max)
                     self.scheduler = {}
                     for act in self._act_list:
                         self.scheduler[act] = torch.optim.lr_scheduler.CosineAnnealingLR(self.optimizer[act], T_max, eta_min=0, last_epoch=-1, verbose=False)
@@ -593,6 +595,34 @@ class VODDPRegressionGeometricInvarianceEngine(VOCNNBaseEngine):
                     # prefetch_factor=PREFETCH_FACTOR,
                 )
                 self.separate_eval_loaders[ACT_IDX2NAME[act]] = act_loader
+
+    def _set_up_optimizer(self):
+
+        self.optimizer = {}
+        self.optimizer_dict = {'adam': optim.Adam, 'adamw': optim.AdamW}
+
+        warnings.warn('WARNING: config.VO.TRAIN.backbone_lr deprecated! Using config.VO.TRAIN.lr instead!')
+        
+        for act in self._act_list:
+            
+            if not self.config.VO.MODEL.train_backbone:
+                # freeze backbone
+                for p in self.vo_model[act].vit.parameters():
+                    p.requires_grad = False
+
+            self.optimizer[act] = self.optimizer_dict[self.config.VO.TRAIN.optim](
+                list(
+                    filter(lambda p: p.requires_grad, self.vo_model[act].parameters())
+                ),
+                lr=self.config.VO.TRAIN.lr,
+                eps=self.config.VO.TRAIN.eps,
+                weight_decay=self.config.VO.TRAIN.weight_decay,
+            )
+
+        if self.config.RESUME_TRAIN:
+            resume_ckpt = torch.load(self.config.RESUME_STATE_FILE)
+            for act in self._act_list:
+                self.optimizer[act].load_state_dict(resume_ckpt["optim_states"][act])
 
     def _transfer_batch(self, act_idxes, rgb_pairs, depth_pairs, discretized_depth_pairs, top_down_view_pairs, rank,):
 
