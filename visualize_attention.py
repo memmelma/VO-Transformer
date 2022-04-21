@@ -213,13 +213,21 @@ def prepare_timm_model(model):
     # add rgb + depth
     # add correct image preprocessing
     def get_last_selfattention(self, x):
+        B, nc, w, h = x.shape
+        print('before path_embed', x.shape)
         x = self.patch_embed(x)
         cls_token = self.cls_token.expand(x.shape[0], -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
         if self.dist_token is None:
             x = torch.cat((cls_token, x), dim=1)
         else:
             x = torch.cat((cls_token, self.dist_token.expand(x.shape[0], -1, -1), x), dim=1)
-        x = self.pos_drop(x + self.pos_embed)
+        
+        
+        print('before interp', x.shape)
+        x = self.interpolate_pos_encoding(x, w, h)
+        print('after interp', x.shape)
+        # x = self.pos_drop(x + self.pos_embed)
+        x = self.pos_drop(x)
         
         for i, blk in enumerate(self.blocks):
             if i < len(self.blocks) - 1:
@@ -309,6 +317,23 @@ if __name__ == '__main__':
         print(f"Provided image path {args.image_path} is non valid.")
         sys.exit(1)
     
+    import matplotlib.pyplot as plt
+    # all [0,1]
+    # H,W,3 -> RGB
+    cur_rgb = plt.imread('/datasets/home/memmel/PointNav-VO/obs/cur_obs_rgb_1.png')
+    pre_rgb = plt.imread('/datasets/home/memmel/PointNav-VO/obs/pre_obs_rgb_1.png')
+    # H,W,3 -> all 3 the same
+    cur_depth = plt.imread('/datasets/home/memmel/PointNav-VO/obs/cur_obs_depth_1.png')
+    pre_depth = plt.imread('/datasets/home/memmel/PointNav-VO/obs/pre_obs_depth_1.png')
+    
+    rgb = np.concatenate((pre_rgb,cur_rgb),axis=0)
+    depth = np.concatenate((pre_depth,cur_depth),axis=0)
+
+    x = np.concatenate((rgb, depth), axis=0)
+    x = torch.tensor(x)
+    img = x.permute(2,0,1).unsqueeze(0)
+    img = torch.nn.functional.interpolate(img, size=(336, 192))
+
     # get filename and remove ending
     fname_original = args.image_path.split('/')[-1].split('.')[0]
     args.output_dir = os.path.join(args.output_dir,  f'{args.backbone}_{args.pretrain_backbone}{"_trained" if args.pretrained_weights != "" else ""}', fname_original)
@@ -319,7 +344,12 @@ if __name__ == '__main__':
     fname = os.path.join(args.output_dir, "img.png")
     img_.save(fname, 'PNG')
     print(f"{fname} saved.")
-    
+    # save resized image
+    fname = os.path.join(args.output_dir, "img_resized.png")
+    print(img.shape)
+    plt.imsave(fname, img.squeeze().permute(1,2,0).numpy())
+    print(f"{fname} saved.")
+
     with open(os.path.join(args.output_dir, 'config.txt'), 'w') as f:
         print(vars(args), file=f)
     
@@ -328,13 +358,13 @@ if __name__ == '__main__':
         pth_transforms.ToTensor(),
         pth_transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225)),
     ])
-    img = transform(img)
+    # img = transform(img)
     # img = transform(img) * 255.
     # ours requires * 255 but not conversion/normalization to RGB 
 
     # make the image divisible by the patch size
-    w, h = img.shape[1] - img.shape[1] % args.patch_size, img.shape[2] - img.shape[2] % args.patch_size
-    img = img[:, :w, :h].unsqueeze(0)
+    # w, h = img.shape[1] - img.shape[1] % args.patch_size, img.shape[2] - img.shape[2] % args.patch_size
+    # img = img[:, :w, :h].unsqueeze(0)
 
     w_featmap = img.shape[-2] // args.patch_size
     h_featmap = img.shape[-1] // args.patch_size
@@ -391,6 +421,6 @@ if __name__ == '__main__':
     print(f"{fname} saved.")
 
     if args.threshold is not None:
-        image = skimage.io.imread(os.path.join(args.output_dir, "img.png"))
+        image = torch.tensor(img) # skimage.io.imread(os.path.join(args.output_dir, "img.png"))
         for j in range(nh):
             display_instances(image, th_attn[j], fname=os.path.join(args.output_dir, "mask_th" + str(args.threshold) + "_head" + str(j) +".png"), blur=False)
