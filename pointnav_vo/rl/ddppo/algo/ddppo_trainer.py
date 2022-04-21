@@ -350,7 +350,7 @@ class DDPPOTrainer(PPOTrainer):
             start_update = requeue_stats["start_update"]
             prev_time = requeue_stats["prev_time"]
 
-            self.best_spl = interrupted_state["metrics"]["spl"]
+            self.best_spl = interrupted_state["metrics"]["best_spl"]
 
         with (
             # TensorboardWriter(self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs)
@@ -683,6 +683,8 @@ class DDPPOTrainer(PPOTrainer):
                                     ),
                                 )
         
+        metrics['best_spl'] = self.best_spl
+
         if checkpoint_path is not None:
             torch.save(
                     dict(
@@ -696,7 +698,7 @@ class DDPPOTrainer(PPOTrainer):
                     checkpoint_path
                 )
 
-            print(f'Saved {metrics["spl"]} at {checkpoint_path}!')
+            print(f'Saved spl:{metrics["spl"]} at {checkpoint_path}!')
 
         if log_path is not None:
         
@@ -705,7 +707,7 @@ class DDPPOTrainer(PPOTrainer):
                         f.write(f'{k}: {metrics[k]}')
                     f.close()
 
-            print(f'Saved {metrics["spl"]} at {checkpoint_path}!')
+            print(f'Saved spl:{metrics["spl"]} at {checkpoint_path}!')
 
         # log latest model for resume
         checkpoint_path = os.path.join(
@@ -738,4 +740,4 @@ class DDPPOTrainer(PPOTrainer):
                 f.write(f'{k}: {metrics[k]}')
             f.close()
         
-        print(f'Saved {metrics["spl"]} at {checkpoint_path}!')
+        print(f'Saved spl:{metrics["spl"]} at {checkpoint_path}!')

@@ -147,7 +147,8 @@ def run_exp(
                     log_folder_name = config.exp_config.split('/')[-1].split('.')[0]
                     log_dir = os.path.join(config.LOG_DIR, log_folder_name)
 
-                    if not os.path.exists(os.path.join(log_dir,'checkpoints')):
+                    # if log_dir doesn't exist or is empty
+                    if not os.path.exists(os.path.join(log_dir,'checkpoints')) or not os.listdir(os.path.join(log_dir,'checkpoints')):
                         config.RESUME_TRAIN = False
                         config.RESUME_STATE_FILE = "start"
                     else:
@@ -171,7 +172,7 @@ def run_exp(
                     assert task_type in ["vo", "rl"], "Invalid task_type, choose one of ['vo','rl'] !"
                     if task_type == "vo":
                         dirs = os.listdir(os.path.join(log_dir,'checkpoints'))
-                        ckpt_ids = [int(dir.split('_')[-1].split('.')[0]) if dir[-4:] == '.pth' else -1 for dir in dirs]
+                        ckpt_ids = [int(dir.split('_')[-1].split('.')[0]) for dir in dirs if (dir[-4:] == '.pth' and dir != 'best_vo.pth')]
                         config.RESUME_STATE_FILE = f'ckpt_epoch_{np.max(ckpt_ids)}.pth'
                     elif task_type == 'rl':
                         config.RESUME_STATE_FILE = 'latest_rl_tune_vo.pth'

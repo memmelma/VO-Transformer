@@ -116,6 +116,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         self.eval_loader = None
         self.separate_eval_loaders = None
 
+        self.best_loss = np.inf
+
     ### Properties ###
     @property
     def delta_types(self):
@@ -303,10 +305,10 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                             
                             scaler.scale(loss).backward()
 
-                            # if self.config.VO.TRAIN.log_grad and rank == 0:
-                            #     self._log_grad(
-                            #         writer, global_step, grad_info_dict, d_type=d_type
-                            #     )
+                            if self.config.VO.TRAIN.log_grad and rank == 0:
+                                self._log_grad(
+                                    writer, global_step, grad_info_dict, d_type=d_type
+                                )
                             
                             # clip gradient norm
                             if self.config.VO.TRAIN.max_clip_gradient_norm:
@@ -319,6 +321,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                             
                             scaler.update()
 
+                # log every epoch
                 if rank == 0:
                     self._log_lr(writer, global_step)
 
@@ -434,7 +437,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                 time.sleep(2)
 
                 if rank == 0:
-                    self.eval(
+                    loss_eval = self.eval(
                         eval_act="no_specify",
                         epoch=epoch,
                         writer=writer,
@@ -454,7 +457,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                     self.vo_model[act].train()
 
                 if rank == 0:
-                    self._save_ckpt(epoch)
+                    self._save_ckpt(epoch, loss_eval)
 
     def _set_up_dataloader(self, rank, world_size):
 
@@ -1473,7 +1476,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                         total_abs_diff_geo_inverse_rot / (total_size / 2),
                         total_abs_diff_geo_inverse_pos / (total_size / 2),
                     )
-
+        return total_loss / total_size
+    
     def _compute_and_update_info(
         self,
         act,
@@ -1764,7 +1768,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                 dataformats="HW",
             )
 
-    def _save_ckpt(self, epoch):
+    def _save_ckpt(self, epoch, eval_loss):
         
         if self.config.DEBUG == False:
             self.config.defrost()
@@ -1780,22 +1784,47 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
             "np_rnd_state": np.random.get_state(),
             "torch_rnd_state": torch.get_rng_state(),
             "torch_cuda_rnd_state": torch.cuda.get_rng_state_all(),
+            "best_loss": eval_loss if eval_loss < self.best_loss else self.best_loss,
         }
 
         if self.scheduler != None and self.config.VO.TRAIN.scheduler == 'cosine':
             state["scheduler_states"] = {k: self.scheduler[k].state_dict() for k in self._act_list}
-           
-        try:
+        
+        # save checkpoint
+        # try:
+        checkpoint_path = os.path.join(self.config.CHECKPOINT_FOLDER, f"ckpt_epoch_{epoch}.pth")
+        torch.save(
+            state,
+            checkpoint_path,
+        )
+        print(f'Saved eval_loss:{eval_loss} at {checkpoint_path}!')
+        # except:
+        #     import sys
+        #     print(f"\ntotal size: {sys.getsizeof(state)}")
+        #     for k, v in state.items():
+        #         print(f"size of {k}: {sys.getsizeof(v)}")
+
+        # save best checkpoint
+        if eval_loss < self.best_loss:
+            self.best_loss = eval_loss
+            # try:
+            #     checkpoint_path = os.path.join(self.config.CHECKPOINT_FOLDER, f"best_vo.pth")
+            #     torch.save(
+            #         state,
+            #         checkpoint_path,
+            #     )
+            #     print(f'Saved {metrics["spl"]} at {checkpoint_path}!')
+            # except:
+            #     import sys
+            #     print(f"\ntotal size: {sys.getsizeof(state)}")
+            #     for k, v in state.items():
+            #         print(f"size of {k}: {sys.getsizeof(v)}")
+            checkpoint_path = os.path.join(self.config.CHECKPOINT_FOLDER, f"best_vo.pth")
             torch.save(
                 state,
-                os.path.join(self.config.CHECKPOINT_FOLDER, f"ckpt_epoch_{epoch}.pth"),
+                checkpoint_path,
             )
-        except:
-            import sys
-
-            print(f"\ntotal size: {sys.getsizeof(state)}")
-            for k, v in state.items():
-                print(f"size of {k}: {sys.getsizeof(v)}")
+            print(f'Saved eval_loss:{eval_loss} at {checkpoint_path}!')
 
     def convert_dataparallel_weights(self, weights):
         converted_weights = {}
