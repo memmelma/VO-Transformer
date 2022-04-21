@@ -9,8 +9,7 @@ export NUMBA_THREADING_LAYER=workqueue && \
 # cd /home/memmel/habitat-sim && \
 # python setup.py install --headless &&\
 # cd ${POINTNAV_VO_ROOT} && \
-# login to git
-sh login_git.sh
+
 
 echo "Clean up..."
 # grep PID of python process listening to some port, kill the process, redirect kill --help to /dev/null if no PID found
@@ -21,7 +20,23 @@ if ! [ "$?" -eq 123 ];
         echo $out
 fi
 
-pip install einops
+FILE=/home/memmel/install_flag
+if ! test -f "$FILE";
+then
+        echo "Install timm..."
+        ${POINTNAV_VO_ROOT}/login_git.sh && \
+        cd /home/memmel/ && \
+        git clone https://github.com/rwightman/pytorch-image-models.git && \
+        cd /home/memmel/pytorch-image-models && \
+        pip install -e . && \
+        cd ${POINTNAV_VO_ROOT}
+
+        echo "Install einops..."
+        pip install einops
+        
+        # only execute the first time
+        touch "$FILE"
+fi
 
 # exec script
 ulimit -n 65000 && \
