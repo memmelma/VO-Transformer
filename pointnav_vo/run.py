@@ -134,34 +134,50 @@ def run_exp(
     vo_pretrained_ckpt_type = "none"
 
     if run_type == "train":
+        
         if config.RESUME_TRAIN:
             
             # new behavior
             if hasattr(config, 'RESUME_STATE_PATH'): 
+
                 config.defrost()
 
-                if config.RESUME_STATE_FILE == None:
-                    # use same log directory as before
+                # auto resume from (non-unique) config path
+                if config.RESUME_STATE_FILE == 'auto':
+                    log_folder_name = config.exp_config.split('/')[-1].split('.')[0]
+                    log_dir = os.path.join(config.LOG_DIR, log_folder_name)
 
-                    # strip /checkpoints
+                    if not os.path.exists(os.path.join(log_dir,'checkpoints')):
+                        config.RESUME_TRAIN = False
+                        config.RESUME_STATE_FILE = "start"
+                    else:
+                        config.RESUME_STATE_PATH = log_dir
+                        config.RESUME_STATE_FILE = "latest"
+
+                # resume latest from (unique) path
+                elif config.RESUME_STATE_FILE == 'latest':
+                    # strip /checkpoints because code assumes/creates it
                     log_dir = config.RESUME_STATE_PATH[:-11]
-                    
-                    # get latest run
-                    assert task_type in ["vo", "rl"], "Invalid task_type, choose one of ['vo','rl'] !"
-                    if task_type == "vo":
-                        dirs = os.listdir(config.RESUME_STATE_PATH)
-                        ckpt_ids = [int(dir.split('_')[-1].split('.')[0]) if dir[-4:] == '.pth' else -1 for dir in dirs]
-                        config.RESUME_STATE_FILE = f'ckpt_epoch_{np.max(ckpt_ids)}.pth'
-                    elif task_type == 'rl':
-                        config.RESUME_STATE_FILE = 'latest_rl_tune_vo.pth'
+
+                # old behavior
                 else:
                     log_dir = os.path.join(
                         # os.path.dirname(config.RESUME_STATE_FILE), f"resume_{cur_time}"
                         config.RESUME_STATE_PATH, f"resume_{cur_time}"
                     )
-
+                 
+                # get latest run
+                if config.RESUME_STATE_FILE == 'latest':
+                    assert task_type in ["vo", "rl"], "Invalid task_type, choose one of ['vo','rl'] !"
+                    if task_type == "vo":
+                        dirs = os.listdir(os.path.join(log_dir,'checkpoints'))
+                        ckpt_ids = [int(dir.split('_')[-1].split('.')[0]) if dir[-4:] == '.pth' else -1 for dir in dirs]
+                        config.RESUME_STATE_FILE = f'ckpt_epoch_{np.max(ckpt_ids)}.pth'
+                    elif task_type == 'rl':
+                        config.RESUME_STATE_FILE = 'latest_rl_tune_vo.pth'
+                
                 # set resume state file
-                config.RESUME_STATE_FILE = os.path.join(config.RESUME_STATE_PATH, config.RESUME_STATE_FILE)
+                config.RESUME_STATE_FILE = os.path.join(config.RESUME_STATE_PATH, 'checkpoints', config.RESUME_STATE_FILE)
                 
                 config.freeze()
 
@@ -175,34 +191,10 @@ def run_exp(
         else:
             # adding some tags to logging directory
             if task_type == "rl":
-                
                 log_folder_name = "{}_dt_{}".format(config.exp_config.split('/')[-1].split('.')[0], cur_time)
-
-                # log_folder_name = (
-                #     "{}-{}-vo_{}-noise_rgb_{}_depth_{}_act_{}-{}-model_{}-visual_{}-"
-                #     "rnn_{}_{}-updates_{}-minibatch_{}-ngpu_{}-proc_{}-lr_{}-{}".format(
-                #         task_type,
-                #         run_type,
-                #         int(config.RL.TUNE_WITH_VO),
-                #         int(rgb_noise),
-                #         int(depth_noise),
-                #         int(action_noise),
-                #         "_".join([_.strip().lower() for _ in config.SENSORS]),
-                #         model_infos.name,
-                #         model_infos.visual_backbone,
-                #         model_infos.rnn_backbone,
-                #         model_infos.num_recurrent_layers,
-                #         config.NUM_UPDATES,
-                #         config.RL.PPO.num_mini_batch,
-                #         config.N_GPUS if config.N_GPUS > 0 else torch.cuda.device_count(),
-                #         config.NUM_PROCESSES,
-                #         str(config.RL.PPO.lr),
-                #         cur_time,
-                #     )
-                # )
-
                 if config.RL.TUNE_WITH_VO:
                     vo_pretrained_ckpt_type = config.VO.REGRESS_MODEL.pretrained_type
+
             elif task_type == "vo":
                 if isinstance(config.VO.TRAIN.action_type, list):
                     act_str = "_".join([str(_) for _ in config.VO.TRAIN.action_type])
@@ -210,51 +202,11 @@ def run_exp(
                     act_str = config.VO.TRAIN.action_type
                 
                 log_folder_name = "{}_dt_{}".format(config.exp_config.split('/')[-1].split('.')[0], cur_time)
-
-                # log_folder_name = (
-                #     "{}-noise_{}-{}-{}-dd_{}_{}-m_cen_{}-act_{}-model_{}-{}-geo_{}_inv_w_{}-"
-                #     "l_mult_fix_{}-{}-dpout_{}-e_{}-b_{}-lr_{}-w_de_{}-{}".format(
-                #         task_type,
-                #         noise,
-                #         run_type,
-                #         "_".join(
-                #             [
-                #                 VIS_TYPE_DICT[_].strip().lower()
-                #                 for _ in config.VO.MODEL.visual_type
-                #             ]
-                #         ),
-                #         config.VO.MODEL.discretize_depth,
-                #         config.VO.MODEL.discretized_depth_channels,
-                #         int(config.VO.MODEL.top_down_center_crop),
-                #         act_str,
-                #         model_infos.name,
-                #         model_infos.visual_backbone,
-                #         "_".join(
-                #             [
-                #                 GEO_SHORT_NAME[str(_)]
-                #                 for _ in config.VO.GEOMETRY.invariance_types
-                #             ]
-                #         ),
-                #         config.VO.GEOMETRY.loss_inv_weight,
-                #         int(config.VO.TRAIN.loss_weight_fixed),
-                #         "_".join(
-                #             [
-                #                 str(_)
-                #                 for _ in config.VO.TRAIN.loss_weight_multiplier.values()
-                #             ]
-                #         ),
-                #         config.VO.MODEL.dropout_p,
-                #         config.VO.TRAIN.epochs,
-                #         config.VO.TRAIN.batch_size,
-                #         config.VO.TRAIN.lr,
-                #         config.VO.TRAIN.weight_decay,
-                #         cur_time,
-                #     )
-                # )
             else:
                 pass
             log_folder_name = "{}_s_{}".format(log_folder_name, config.TASK_CONFIG.SEED)
             log_dir = os.path.join(config.LOG_DIR, log_folder_name)
+
     elif "eval" in run_type:
         # save evaluation infos to the checkpoint's directory
         if os.path.isfile(config.EVAL.EVAL_CKPT_PATH):

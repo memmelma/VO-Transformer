@@ -187,12 +187,12 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         if self.config.RESUME_TRAIN:
             resume_ckpt = torch.load(self.config.RESUME_STATE_FILE)
             if "epoch" in resume_ckpt:
-                start_epoch = resume_ckpt["epoch"] # + 1 eliminates wandb issue of logging twice w/ same epoch but skips one log file
+                start_epoch = resume_ckpt["epoch"] + 1 # eliminates wandb issue of logging twice w/ same epoch but skips one log file
             if "rnd_state" in resume_ckpt:
                 random.setstate(resume_ckpt["rnd_state"])
                 np.random.set_state(resume_ckpt["np_rnd_state"])
                 torch.set_rng_state(resume_ckpt["torch_rnd_state"])
-                # torch.cuda.set_rng_state_all(resume_ckpt["torch_cuda_rnd_state"])
+                torch.cuda.set_rng_state_all(resume_ckpt["torch_cuda_rnd_state"])
 
         nbatches = np.ceil(len(self.train_loader.dataset) / self._train_batch_size)
 
@@ -303,10 +303,10 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                             
                             scaler.scale(loss).backward()
 
-                            if self.config.VO.TRAIN.log_grad and rank == 0:
-                                self._log_grad(
-                                    writer, global_step, grad_info_dict, d_type=d_type
-                                )
+                            # if self.config.VO.TRAIN.log_grad and rank == 0:
+                            #     self._log_grad(
+                            #         writer, global_step, grad_info_dict, d_type=d_type
+                            #     )
                             
                             # clip gradient norm
                             if self.config.VO.TRAIN.max_clip_gradient_norm:
@@ -319,102 +319,100 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                             
                             scaler.update()
 
-                            if rank == 0:
-                                self._log_lr(writer, global_step)
+                if rank == 0:
+                    self._log_lr(writer, global_step)
 
-                                # NOTE
-                                if batch_i == 10:
-                                    self._obs_log_func(writer, global_step, batch_pairs)
+                    self._obs_log_func(writer, global_step, batch_pairs)
 
-                                writer.add_scalar(
-                                    f"Objective/train", loss, global_step=global_step
+                    writer.add_scalar(
+                        f"Objective/train", loss, global_step=global_step
+                    )
+
+                    if batch_i == nbatches - 1:
+                        self._save_dict(
+                            {"train_objective": [loss.cpu().item()]},
+                            os.path.join(
+                                self.config.INFO_DIR, f"train_objective_info.p"
+                            ),
+                        )
+
+                    for i, act in enumerate(self._act_list):
+                        log_name = f"train_{ACT_IDX2NAME[act]}"
+                        self._aux_depth_log_func(writer, log_name, global_step, all_aux_depth_loss[i])
+                        if self.config.VO.TRAIN.depth_aux_loss:
+                            self._pred_depth_log_func(writer, log_name, global_step, all_inter_depth[i], all_pred_depth[i])
+
+                    for act in self._act_list:
+                        for i, d_type in enumerate(self.delta_types):
+
+                            # fmt: off
+                            log_name = f"train_{ACT_IDX2NAME[act]}"
+
+                            if len(self.geo_invariance_types) == 0:
+                                self._regress_log_func(
+                                    writer,
+                                    log_name,
+                                    global_step,
+                                    abs_diffs[act][i],
+                                    target_magnitudes[act][i],
+                                    relative_diffs[act][i],
+                                    d_type=d_type,
                                 )
 
                                 if batch_i == nbatches - 1:
-                                    self._save_dict(
-                                        {"train_objective": [loss.cpu().item()]},
-                                        os.path.join(
-                                            self.config.INFO_DIR, f"train_objective_info.p"
-                                        ),
+                                    self._regress_udpate_dict(
+                                        log_name,
+                                        abs_diffs[act][i],
+                                        target_magnitudes[act][i],
+                                        relative_diffs[act][i],
+                                        d_type=d_type,
                                     )
-
-                                for i, act in enumerate(self._act_list):
-                                    log_name = f"train_{ACT_IDX2NAME[act]}"
-                                    self._aux_depth_log_func(writer, log_name, global_step, all_aux_depth_loss[i])
-                                    if self.config.VO.TRAIN.depth_aux_loss:
-                                        self._pred_depth_log_func(writer, log_name, global_step, all_inter_depth[i], all_pred_depth[i])
-
-                                for act in self._act_list:
-                                    for i, d_type in enumerate(self.delta_types):
-
-                                        # fmt: off
-                                        log_name = f"train_{ACT_IDX2NAME[act]}"
-
-                                        if len(self.geo_invariance_types) == 0:
-                                            self._regress_log_func(
-                                                writer,
-                                                log_name,
-                                                global_step,
-                                                abs_diffs[act][i],
-                                                target_magnitudes[act][i],
-                                                relative_diffs[act][i],
-                                                d_type=d_type,
-                                            )
-
-                                            if batch_i == nbatches - 1:
-                                                self._regress_udpate_dict(
-                                                    log_name,
-                                                    abs_diffs[act][i],
-                                                    target_magnitudes[act][i],
-                                                    relative_diffs[act][i],
-                                                    d_type=d_type,
-                                                )
-                                        else:
-                                            for tmp_id in tmp_data_types:
-                                                tmp_name = DATA_TYPE_ID2STR[tmp_id]
-                                                self._regress_log_func(
-                                                    writer,
-                                                    f"{log_name}_{tmp_name}",
-                                                    global_step,
-                                                    abs_diffs[act][tmp_name][i],
-                                                    target_magnitudes[act][tmp_name][i],
-                                                    relative_diffs[act][tmp_name][i],
-                                                    d_type=d_type,
-                                                )
-
-                                                if batch_i == nbatches - 1:
-                                                    self._regress_udpate_dict(
-                                                        f"{log_name}_{tmp_name}",
-                                                        abs_diffs[act][tmp_name][i],
-                                                        target_magnitudes[act][tmp_name][i],
-                                                        relative_diffs[act][tmp_name][i],
-                                                        d_type=d_type,
-                                                    )
-                                        # fmt: on
-
-                                if "inverse_joint_train" in self.geo_invariance_types:
-                                    self._geo_invariance_inverse_log_func(
+                            else:
+                                for tmp_id in tmp_data_types:
+                                    tmp_name = DATA_TYPE_ID2STR[tmp_id]
+                                    self._regress_log_func(
                                         writer,
-                                        "train",
+                                        f"{log_name}_{tmp_name}",
                                         global_step,
-                                        abs_diff_geo_inverse_rot,
-                                        abs_diff_geo_inverse_pos,
-                                    )
-
-                                    self._geo_invariance_inverse_log_func(
-                                        writer,
-                                        "train_debug",
-                                        global_step,
-                                        debug_abs_diff_geo_inverse_rot,
-                                        debug_abs_diff_geo_inverse_pos,
+                                        abs_diffs[act][tmp_name][i],
+                                        target_magnitudes[act][tmp_name][i],
+                                        relative_diffs[act][tmp_name][i],
+                                        d_type=d_type,
                                     )
 
                                     if batch_i == nbatches - 1:
-                                        self._geo_invariance_inverse_udpate_dict(
-                                            "train",
-                                            abs_diff_geo_inverse_rot,
-                                            abs_diff_geo_inverse_pos,
+                                        self._regress_udpate_dict(
+                                            f"{log_name}_{tmp_name}",
+                                            abs_diffs[act][tmp_name][i],
+                                            target_magnitudes[act][tmp_name][i],
+                                            relative_diffs[act][tmp_name][i],
+                                            d_type=d_type,
                                         )
+                            # fmt: on
+
+                    if "inverse_joint_train" in self.geo_invariance_types:
+                        self._geo_invariance_inverse_log_func(
+                            writer,
+                            "train",
+                            global_step,
+                            abs_diff_geo_inverse_rot,
+                            abs_diff_geo_inverse_pos,
+                        )
+
+                        self._geo_invariance_inverse_log_func(
+                            writer,
+                            "train_debug",
+                            global_step,
+                            debug_abs_diff_geo_inverse_rot,
+                            debug_abs_diff_geo_inverse_pos,
+                        )
+
+                        if batch_i == nbatches - 1:
+                            self._geo_invariance_inverse_udpate_dict(
+                                "train",
+                                abs_diff_geo_inverse_rot,
+                                abs_diff_geo_inverse_pos,
+                            )
 
                 # setup learning rate scheduler setup after first epoch since we don't know 'n_batches' yet 
                 if self.scheduler == None and self.config.VO.TRAIN.scheduler == 'cosine':
@@ -438,7 +436,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                 if rank == 0:
                     self.eval(
                         eval_act="no_specify",
-                        epoch=epoch + 1,
+                        epoch=epoch,
                         writer=writer,
                         split_name="eval_all",
                     )
@@ -447,7 +445,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                         for act in self.separate_eval_loaders:
                             self.eval(
                                 eval_act=act,
-                                epoch=epoch + 1,
+                                epoch=epoch,
                                 writer=writer,
                                 split_name=f"eval_{act}",
                             )
@@ -456,7 +454,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                     self.vo_model[act].train()
 
                 if rank == 0:
-                    self._save_ckpt(epoch + 1)
+                    self._save_ckpt(epoch)
 
     def _set_up_dataloader(self, rank, world_size):
 
