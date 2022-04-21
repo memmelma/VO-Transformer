@@ -159,3 +159,5 @@ imgs_debug*
 
 # model checkpoints
 *.pth
+# images
+*.png
