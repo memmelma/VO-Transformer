@@ -6,7 +6,7 @@ import torch
 
 
 class WandbWriter:
-    def __init__(self, config: Any, rank=0, *args: Any, **kwargs: Any):
+    def __init__(self, config: Any, rank=0, project='vit-vo', *args: Any, **kwargs: Any):
         r"""A Wrapper for wandb.
 
         Args:
@@ -19,10 +19,10 @@ class WandbWriter:
             os.system("wandb login --relogin $WANDB_API_KEY")
             
             if hasattr(config, "WANDB_RUN_ID") and config.RESUME_TRAIN:
-                self.run = wandb.init(project="vo", entity="memmelma", id=config.WANDB_RUN_ID, resume="must",
+                self.run = wandb.init(project=project, entity="memmelma", id=config.WANDB_RUN_ID, resume="must",
                                         mode="disabled" if config.TASK_CONFIG.DATASET.SPLIT != 'train' else None)
             else:
-                self.run = wandb.init(project="vo", entity="memmelma", config=vars(),
+                self.run = wandb.init(project=project, entity="memmelma", config=vars(),
                                         mode="disabled" if config.TASK_CONFIG.DATASET.SPLIT != 'train' else None, reinit=True)
             
             config_name = config.exp_config.split('/')[-1].split('.')[0]

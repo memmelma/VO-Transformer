@@ -1,6 +1,6 @@
 BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
 
-ENGINE_NAME: "vo_transformer_regression_geo_inv_engine"
+ENGINE_NAME: "vo_ddp_regression_geo_invariance_engine"
 
 # logging settings
 LOG_DIR: "train_log/vit/"
@@ -17,7 +17,7 @@ DEBUG: False
 
 RESUME_TRAIN: True
 RESUME_STATE_PATH: "train_log/vit/debug_dt_20220415_101942705763_s_1/checkpoints" # path to the checkpoint you want to resume training from
-RESUME_STATE_FILE: "auto"None"   # checkpoint you want to resume training from, if "None" resume from latest -> resumes in RESUME_STATE_PATH instead of RESUME_STATE_PATH/resume_xxx 
+RESUME_STATE_FILE: "auto"   # checkpoint you want to resume training from, if "None" resume from latest -> resumes in RESUME_STATE_PATH instead of RESUME_STATE_PATH/resume_xxx 
 
 # evaluation settings
 EVAL:
