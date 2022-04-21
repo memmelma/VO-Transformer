@@ -43,6 +43,7 @@ from pointnav_vo.rl.ppo.policy import PointNavBaselinePolicy
 from pointnav_vo.utils.geometry_utils import compute_goal_pos, compute_global_state
 from pointnav_vo.vo.common.common_vars import *
 
+import wandb
 
 @baseline_registry.register_trainer(name="ppo")
 class PPOTrainer(BaseRLTrainerWithVO):
@@ -109,6 +110,12 @@ class PPOTrainer(BaseRLTrainerWithVO):
         Returns:
             None
         """
+
+        if self.config.DEBUG == False:
+            self.config.defrost()
+            self.config.WANDB_RUN_ID = wandb.run.id
+            self.config.freeze()
+
         checkpoint = {
             "state_dict": self.agent.state_dict(),
             "config": self.config,

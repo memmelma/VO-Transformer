@@ -53,6 +53,7 @@ from pointnav_vo.rl.ddppo.algo.ddppo import DDPPO
 from pointnav_vo.rl.ppo.ppo_trainer import PPOTrainer
 from pointnav_vo.vo.common.common_vars import *
 
+import wandb
 
 @baseline_registry.register_trainer(name="efficient_ddppo")
 class DDPPOTrainer(PPOTrainer):
@@ -88,7 +89,7 @@ class DDPPOTrainer(PPOTrainer):
         else:
             self.resume_state_file = None
 
-        self.best_spl = 0.0
+        self.best_spl = -1.
 
         super().__init__(config)
 
@@ -348,6 +349,8 @@ class DDPPOTrainer(PPOTrainer):
             count_checkpoints = requeue_stats["count_checkpoints"]
             start_update = requeue_stats["start_update"]
             prev_time = requeue_stats["prev_time"]
+
+            self.best_spl = interrupted_state["metrics"]["spl"]
 
         with (
             # TensorboardWriter(self.config.TENSORBOARD_DIR, flush_secs=self.flush_secs)
@@ -636,56 +639,103 @@ class DDPPOTrainer(PPOTrainer):
                 start_update=update,
                 prev_time=(time.time() - t_start) + prev_time,
             )
+        
+        checkpoint_path = None
+        log_path = None
+
+        if self.config.DEBUG == False:
+            self.config.defrost()
+            self.config.WANDB_RUN_ID = wandb.run.id
+            self.config.freeze()
             
-        # print(metrics['spl'], count_steps)
+        # log best model
         if metrics['spl'] > self.best_spl and self.config.CHECKPOINT_INTERVAL == -1:
-            self.best_spl = metrics['spl']  
+            self.best_spl = metrics['spl']
             
             checkpoint_path = os.path.join(
                                     self.config.CHECKPOINT_FOLDER,
-                                    "rl_tune_vo.pth".format(
+                                    "best_rl_tune_vo.pth".format(
                                         count_checkpoints, update, int(count_steps)
                                     ),
                                 )   
             
-            torch.save(
-                dict(
-                    state_dict=self.agent.state_dict(),
-                    optim_state=self.agent.optimizer.state_dict(),
-                    lr_sched_state=lr_scheduler.state_dict(),
-                    config=self.config,
-                    requeue_stats=requeue_stats,
-                ),
-                checkpoint_path
-            )
+            log_path = os.path.join(
+                                    self.config.CHECKPOINT_FOLDER,
+                                    "best_ckpt_{}.update_{}.frames_{}.log".format(
+                                        count_checkpoints, update, int(count_steps)
+                                    ),
+                                )
+
+        # log model every $ steps
+        elif update % self.config.CHECKPOINT_INTERVAL == 0 and self.config.CHECKPOINT_INTERVAL != -1:
+
+            checkpoint_path = os.path.join(
+                                    self.config.CHECKPOINT_FOLDER,
+                                    "ckpt_{}.update_{}.frames_{}.pth".format(
+                                        count_checkpoints, update, int(count_steps)
+                                    ),
+                                ),
 
             log_path = os.path.join(
-                            self.config.CHECKPOINT_FOLDER,
-                            "ckpt_{}.update_{}.frames_{}.log".format(
-                                count_checkpoints, update, int(count_steps)
-                            ),
-                        )
-            with open(log_path, 'w') as f:
-                for k in metrics:
-                    f.write(f'{k}: {metrics[k]}')
-                f.close()
+                                    self.config.CHECKPOINT_FOLDER,
+                                    "ckpt_{}.update_{}.frames_{}.log".format(
+                                        count_checkpoints, update, int(count_steps)
+                                    ),
+                                )
+        
+        if checkpoint_path is not None:
+            torch.save(
+                    dict(
+                        state_dict=self.agent.state_dict(),
+                        optim_state=self.agent.optimizer.state_dict(),
+                        lr_sched_state=lr_scheduler.state_dict(),
+                        config=self.config,
+                        requeue_stats=requeue_stats,
+                        metrics=metrics,
+                    ),
+                    checkpoint_path
+                )
 
             print(f'Saved {metrics["spl"]} at {checkpoint_path}!')
 
-        elif update % self.config.CHECKPOINT_INTERVAL == 0 and self.config.CHECKPOINT_INTERVAL != -1:
+        if log_path is not None:
+        
+            with open(log_path, 'w') as f:
+                    for k in metrics:
+                        f.write(f'{k}: {metrics[k]}')
+                    f.close()
 
-            torch.save(
-                dict(
-                    state_dict=self.agent.state_dict(),
-                    optim_state=self.agent.optimizer.state_dict(),
-                    lr_sched_state=lr_scheduler.state_dict(),
-                    config=self.config,
-                    requeue_stats=requeue_stats,
-                ),
-                os.path.join(
-                    self.config.CHECKPOINT_FOLDER,
-                    "ckpt_{}.update_{}.frames_{}.pth".format(
-                        count_checkpoints, update, int(count_steps)
-                    ),
-                ),
-            )
+            print(f'Saved {metrics["spl"]} at {checkpoint_path}!')
+
+        # log latest model for resume
+        checkpoint_path = os.path.join(
+                                self.config.CHECKPOINT_FOLDER,
+                                "latest_rl_tune_vo.pth".format(
+                                    count_checkpoints, update, int(count_steps)
+                                ),
+                            )   
+        
+        torch.save(
+            dict(
+                state_dict=self.agent.state_dict(),
+                optim_state=self.agent.optimizer.state_dict(),
+                lr_sched_state=lr_scheduler.state_dict(),
+                config=self.config,
+                requeue_stats=requeue_stats,
+                metrics=metrics,
+            ),
+            checkpoint_path
+        )
+
+        log_path = os.path.join(
+                        self.config.CHECKPOINT_FOLDER,
+                        "ckpt_{}.update_{}.frames_{}.log".format(
+                            count_checkpoints, update, int(count_steps)
+                        ),
+                    )
+        with open(log_path, 'w') as f:
+            for k in metrics:
+                f.write(f'{k}: {metrics[k]}')
+            f.close()
+        
+        print(f'Saved {metrics["spl"]} at {checkpoint_path}!')

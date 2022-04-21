@@ -135,9 +135,43 @@ def run_exp(
 
     if run_type == "train":
         if config.RESUME_TRAIN:
-            log_dir = os.path.join(
-                os.path.dirname(config.RESUME_STATE_FILE), f"resume_{cur_time}"
-            )
+            
+            # new behavior
+            if hasattr(config, 'RESUME_STATE_PATH'): 
+                config.defrost()
+
+                if config.RESUME_STATE_FILE == None:
+                    # use same log directory as before
+
+                    # strip /checkpoints
+                    log_dir = config.RESUME_STATE_PATH[:-11]
+                    
+                    # get latest run
+                    assert task_type in ["vo", "rl"], "Invalid task_type, choose one of ['vo','rl'] !"
+                    if task_type == "vo":
+                        dirs = os.listdir(config.RESUME_STATE_PATH)
+                        ckpt_ids = [int(dir.split('_')[-1].split('.')[0]) if dir[-4:] == '.pth' else -1 for dir in dirs]
+                        config.RESUME_STATE_FILE = f'ckpt_epoch_{np.max(ckpt_ids)}.pth'
+                    elif task_type == 'rl':
+                        config.RESUME_STATE_FILE = 'latest_rl_tune_vo.pth'
+                else:
+                    log_dir = os.path.join(
+                        # os.path.dirname(config.RESUME_STATE_FILE), f"resume_{cur_time}"
+                        config.RESUME_STATE_PATH, f"resume_{cur_time}"
+                    )
+
+                # set resume state file
+                config.RESUME_STATE_FILE = os.path.join(config.RESUME_STATE_PATH, config.RESUME_STATE_FILE)
+                
+                config.freeze()
+
+                print(f"Resuming from {config.RESUME_STATE_FILE}")
+
+            # old behavior
+            else:
+                log_dir = os.path.join(
+                    os.path.dirname(config.RESUME_STATE_FILE), f"resume_{cur_time}"
+                )
         else:
             # adding some tags to logging directory
             if task_type == "rl":
