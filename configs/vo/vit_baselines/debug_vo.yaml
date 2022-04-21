@@ -17,7 +17,7 @@ DEBUG: False
 
 RESUME_TRAIN: True
 RESUME_STATE_PATH: "train_log/vit/debug_dt_20220415_101942705763_s_1/checkpoints" # path to the checkpoint you want to resume training from
-RESUME_STATE_FILE: "None"   # checkpoint you want to resume training from, if "None" resume from latest -> resumes in RESUME_STATE_PATH instead of RESUME_STATE_PATH/resume_xxx 
+RESUME_STATE_FILE: "auto"None"   # checkpoint you want to resume training from, if "None" resume from latest -> resumes in RESUME_STATE_PATH instead of RESUME_STATE_PATH/resume_xxx 
 
 # evaluation settings
 EVAL:
@@ -35,12 +35,12 @@ VO:
     # - 2.5e-4 for training from the scratch
     # - 1.5e-4 for joint training left-right model with geometric invariance loss
     lr: 2.e-4
-    backbone_lr: 2.e-4
-    weight_decay: 0.0 # we do not use weight decay in our experiments
-    scheduler: "none" # choices: 'none', 'cosine'
+    
+    weight_decay: 0.05 # we do not use weight decay in our experiments
+    scheduler: "cosine" # choices: 'none', 'cosine'
     eps: 1.0e-8
-    batch_size: 56 # [ A100|base|mixed: 32 ] [ A100|small|mixed: 64 ]
-    epochs: 170
+    batch_size: 56 # [ A100: small rgbANDdepth 320 / small rgbORdepth 768 / base rgbANDdepth 160 ]
+    epochs: 150
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
     log_grad: False
@@ -48,7 +48,7 @@ VO:
     optim: "adamw"
     warm_up_steps: 10 # ~5-10% steps, e.g. 5 warmup, 100 train
     mixed_precision: True
-    max_clip_gradient_norm: 0.0 # vit: 1.0, off: 0.0
+    max_clip_gradient_norm: 1.0 # vit: 1.0, off: 0.0
     depth_aux_loss: 0.0 # requires visual_type: ["depth"]
     
     collision: "-1"   # whether to train w/ or w/o collision data. -1 means we train on all data no matter whether there is collsion or not.
