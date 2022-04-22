@@ -3,7 +3,7 @@ BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
 ENGINE_NAME: "vo_ddp_regression_geo_invariance_engine"
 
 # logging settings
-LOG_DIR: "train_log/vit/"
+LOG_DIR: "train_log/vit/unique/"
 LOG_FILE: "{{LOG_DIR}}/train.log"
 INFO_DIR: "{{LOG_DIR}}/infos"
 CHECKPOINT_FOLDER: "{{LOG_DIR}}/checkpoints"

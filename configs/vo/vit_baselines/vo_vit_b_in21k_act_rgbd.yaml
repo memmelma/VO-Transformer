@@ -3,7 +3,7 @@ BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
 ENGINE_NAME: "vo_ddp_regression_geo_invariance_engine"
 
 # logging settings
-LOG_DIR: "train_log/vit/"
+LOG_DIR: "train_log/vit/unique/"
 LOG_FILE: "{{LOG_DIR}}/train.log"
 INFO_DIR: "{{LOG_DIR}}/infos"
 CHECKPOINT_FOLDER: "{{LOG_DIR}}/checkpoints"
@@ -39,7 +39,7 @@ VO:
     weight_decay: 0.05 # we do not use weight decay in our experiments
     scheduler: "cosine" # choices: 'none', 'cosine'
     eps: 1.0e-8
-    batch_size: 160 # [ A100: small rgbANDdepth 320 / small rgbORdepth 768 / base rgbANDdepth 160 ]
+    batch_size: 128 # [ A100: small rgbANDdepth 320 / small rgbORdepth 768 / base rgbANDdepth 160 ]
     epochs: 170
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
