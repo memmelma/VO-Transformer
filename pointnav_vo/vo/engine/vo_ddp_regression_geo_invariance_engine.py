@@ -189,11 +189,12 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         if self.config.RESUME_TRAIN:
             resume_ckpt = torch.load(self.config.RESUME_STATE_FILE)
             if "epoch" in resume_ckpt:
-                start_epoch = resume_ckpt["epoch"] + 1 # eliminates wandb issue of logging twice w/ same epoch but skips one log file
+                start_epoch = resume_ckpt["epoch"] + 1
             if "rnd_state" in resume_ckpt:
                 random.setstate(resume_ckpt["rnd_state"])
                 np.random.set_state(resume_ckpt["np_rnd_state"])
                 torch.set_rng_state(resume_ckpt["torch_rnd_state"])
+                # number of GPUs has to be the same as when initially trained
                 torch.cuda.set_rng_state_all(resume_ckpt["torch_cuda_rnd_state"])
 
         nbatches = np.ceil(len(self.train_loader.dataset) / self._train_batch_size)
