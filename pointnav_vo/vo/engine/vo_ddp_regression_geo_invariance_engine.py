@@ -1147,7 +1147,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                         self.vo_model[act].load_state_dict(resume_ckpt["model_state"])
                     elif "model_states" in resume_ckpt:
                         self.vo_model[act].load_state_dict(
-                            self.convert_dataparallel_weights(resume_ckpt["model_states"][act])
+                            self.convert_dataparallel_weights(resume_ckpt["model_states"][act]),
+                            strict=False
                         )
 
             elif self.config.VO.MODEL.pretrained:
@@ -1164,7 +1165,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                         self.vo_model[act].load_state_dict(pretrained_ckpt["model_state"])
                     elif "model_states" in pretrained_ckpt:
                         self.vo_model[act].load_state_dict(
-                            self.convert_dataparallel_weights(pretrained_ckpt["model_states"][act])
+                            self.convert_dataparallel_weights(pretrained_ckpt["model_states"][act]),
+                            strict=False
                         )
 
                     # if "model_state" in pretrained_ckpt:
@@ -1831,6 +1833,9 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         converted_weights = {}
         keys = weights.keys()
         for key in keys:
+            # skip cls_token as it has variable size and is updated at the beginning of each forward()-call
+            if key == 'module.vit.cls_token':
+                continue
             new_key = key.split("module.")[-1]
             converted_weights[new_key] = weights[key]
         return converted_weights
