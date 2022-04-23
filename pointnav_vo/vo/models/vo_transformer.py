@@ -247,7 +247,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 x = depth
             else:
                 warnings.warn('WARNING: config.VO.MODEL.visual_type can not be processed by config.VO.MODEL.name = "vo_transformer_act_embed". Model will be BLIND!')
-                x = torch.zeros(len(actions), 3, 341, 192).to(actions.device)
+                x = torch.zeros(len(actions), 3, self.obs_size[0], self.obs_size[1]).to(actions.device)
 
             if self.cls_action:
                 features = self.vit.forward_features(x, actions, self.EMBED_DIM)[:, 0]
