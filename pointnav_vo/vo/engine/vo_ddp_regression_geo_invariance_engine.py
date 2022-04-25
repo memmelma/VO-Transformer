@@ -13,6 +13,10 @@ import multiprocessing
 from tqdm import tqdm
 from collections import defaultdict, OrderedDict
 
+import cv2
+from matplotlib import cm
+from PIL import Image
+
 import torch
 import torch.optim as optim
 import torch.distributed as dist
@@ -832,6 +836,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
             pred_delta_states, pred_depth = self._compute_model_output(
                 actions[act_idxes, :], batch_pairs, act=act, return_depth=bool(self.config.VO.TRAIN.depth_aux_loss)
             )
+            batch_pairs["actions"] = actions[act_idxes, :]
 
 
             if "inverse_joint_train" in cur_geo_invariance_types:
@@ -1106,6 +1111,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                 train_backbone=self.config.VO.MODEL.train_backbone,
                 pretrain_backbone=self.config.VO.MODEL.pretrain_backbone,
                 custom_model_path=self.config.VO.MODEL.custom_model_path,
+                depth_aux_loss=bool(self.config.VO.TRAIN.depth_aux_loss),
             )
 
             parameter_count = sum(
@@ -1359,6 +1365,14 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                     total_size == target_size
                 ), f"The number of data as {total_size} does not match dataset length {target_size}."
 
+                if "transformer" in self.config.VO.MODEL.name:
+                    batch_pairs["rgb"] = batch_pairs["rgb"][0].unsqueeze(0)
+                    batch_pairs["depth"] = batch_pairs["depth"][0].unsqueeze(0)
+                    batch_pairs["actions"] = batch_pairs["actions"][0].unsqueeze(0)
+
+                    features, batch_pairs["self_attention"] = self.vo_model[-1](batch_pairs, batch_pairs["actions"], return_attention=True)
+                    self._attn_log_func(writer, epoch, batch_pairs)
+                        
                 # NOTE
                 del eval_iter
                 time.sleep(2)
@@ -1741,6 +1755,107 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                 batch_pairs["top_down_view"][0, :, :, 1].cpu(),
                 global_step,
                 dataformats="HW",
+            )
+    
+    def _attn_log_func(
+        self, writer, global_step, batch_pairs,
+    ):
+
+        nh = batch_pairs["self_attention"].shape[1] # number of head
+        obs_size = self.vo_model[-1].module.obs_size
+        obs_size_single = self.vo_model[-1].module.obs_size_single
+
+        # we keep only the output patch attention
+        if self.config.VO.MODEL.pretrain_backbone == 'mmae':
+            cls_token_idx = -1
+        else:
+            cls_token_idx = 0
+
+        path_size = 16
+
+        attn = batch_pairs["self_attention"][0, :, cls_token_idx, 1:].reshape(nh, -1)
+        attn = attn.reshape(nh, obs_size[0]//path_size, obs_size[1]//path_size)
+        attn = torch.nn.functional.interpolate(attn.unsqueeze(0), scale_factor=path_size, mode="nearest")[0]
+
+        if "rgb" in self._observation_space:
+            rgb = batch_pairs["rgb"][0].unsqueeze(0)
+            rgb = torch.cat((rgb[:,:,:,:rgb.shape[-1]//2], rgb[:,:,:,rgb.shape[-1]//2:]),dim=1)
+            rgb = rgb.permute(0,3,1,2).contiguous()
+            rgb = torch.nn.functional.interpolate(rgb, size=(obs_size_single[0]*2,obs_size_single[1]))
+            img = rgb
+        if "depth" in self._observation_space:
+            depth =  batch_pairs["depth"][0].unsqueeze(0)
+            depth = torch.cat((depth[:,:,:,:depth.shape[-1]//2], depth[:,:,:,depth.shape[-1]//2:]),dim=1)
+            depth = depth.permute(0,3,1,2).contiguous()
+            depth = torch.nn.functional.interpolate(depth, size=(obs_size_single[0]*2,obs_size_single[1]))
+            depth = depth.expand(-1, 3, -1, -1) * 255.
+            img = depth
+        
+        if "rgb" in self._observation_space and "depth" in self._observation_space:
+            img = torch.cat((rgb,depth),dim=2)
+
+        attn = attn.cpu().numpy()
+
+        attn_mean = np.mean(attn, axis=0)
+        attn_mean = cm.viridis(attn_mean)
+        attn_mean = (attn_mean * 255).astype(np.uint8)
+        
+        img = img.cpu().numpy().squeeze()
+        img = img.astype(np.uint8).transpose(1,2,0)
+
+        writer.add_pil_image(
+                        "attention/obs",
+                        Image.fromarray(img),
+                        global_step,
+                        dataformats="HWC",
+                    )
+
+        overlay = cv2.addWeighted(attn_mean[:,:,:-1], 0.8, img, 0.6, 0.0)
+
+        writer.add_pil_image(
+                "attention/mean_overlay",
+                Image.fromarray(overlay),
+                global_step,
+                dataformats="HWC",
+            )
+        writer.add_pil_image(
+                "attention/mean",
+                Image.fromarray(attn_mean),
+                global_step,
+                dataformats="HWC",
+            )
+
+        heads_overlay = None
+        heads = None
+        for i, head in enumerate(attn):
+
+            head = cm.viridis(head)
+            head = (head * 255).astype(np.uint8)
+        
+            overlay = cv2.addWeighted(head[:,:,:-1], 0.8, img, 0.6, 0.0)
+
+            if heads_overlay is None:
+                heads_overlay = overlay
+            else:
+                heads_overlay = np.concatenate((heads_overlay,overlay), axis=1)
+
+            if heads is None:
+                heads = head[:,:,:-1]
+            else:
+                heads = np.concatenate((heads,head[:,:,:-1]), axis=1)
+
+        writer.add_pil_image(
+                f"attention_heads/heads_overlay",
+                Image.fromarray(heads_overlay),
+                global_step,
+                dataformats="HWC",
+            )
+
+        writer.add_pil_image(
+                f"attention_heads/heads",
+                Image.fromarray(heads),
+                global_step,
+                dataformats="HWC",
             )
 
     def _aux_depth_log_func(

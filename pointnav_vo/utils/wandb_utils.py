@@ -71,6 +71,13 @@ class WandbWriter:
             img = wandb.Image(img.permute(2,0,1), caption="")
             wandb.log({descriptor: img}, step=int(global_step))
 
+    def add_pil_image(
+        self, descriptor: str, img: Any, global_step: int, dataformats=None, *args: Any, **kwargs: Any
+    ) -> None:
+        if self.use_wandb:
+            img = wandb.Image(img, caption="")
+            wandb.log({descriptor: img}, step=int(global_step))
+
     def add_scalar(
         self, descriptor: str, value: Any, global_step: int, *args: Any, **kwargs: Any
         ) -> None:

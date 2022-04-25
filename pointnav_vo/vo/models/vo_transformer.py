@@ -40,6 +40,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
         n_acts=N_ACTS,
+        depth_aux_loss = False,
         **kwargs
     ):
         super().__init__()
@@ -47,9 +48,10 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         self.cls_action = cls_action
         self.pretrain_backbone = pretrain_backbone
         self.observation_space = observation_space
-        
+        self.depth_aux_loss = depth_aux_loss
+
         self.obs_size_single = obs_size_single
-        if ("rgb" in self.observation_space and "depth" in self.observation_space) \
+        if ("rgb" in self.observation_space and "depth" in self.observation_space and not self.depth_aux_loss) \
         or (self.observation_space.count("rgb") == 2):
             self.obs_size = (self.obs_size_single[0]*4, self.obs_size_single[1])
         else:
@@ -142,7 +144,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         self.vit.embed = embed
         
         if self.cls_action and self.pretrain_backbone != 'mmae':
-            def forward_features(self, x, actions, EMBED_DIM):
+            def forward_features(self, x, actions, EMBED_DIM, return_attention=False):
                 x = self.patch_embed(x)
                 self.cls_token = torch.nn.Parameter(self.embed(actions).reshape(x.shape[0], 1, EMBED_DIM),requires_grad=False)
                 # x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
@@ -151,9 +153,22 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 if self.grad_checkpointing and not torch.jit.is_scripting():
                     x = checkpoint_seq(self.blocks, x)
                 else:
-                    x = self.blocks(x)
+                    if return_attention:
+                        for i, blk in enumerate(self.blocks):
+                            if i < len(self.blocks) - 1:
+                                x = blk(x)
+                            else:
+                                x, attn = blk(x, return_attention=return_attention)
+                    else:
+                        x = self.blocks(x)
+
                 x = self.norm(x)
-                return x
+                
+                if return_attention:
+                    return x, attn
+                else:
+                    return x
+
             self.vit.forward_features = types.MethodType(forward_features, self.vit)
 
         if normalize_visual_inputs:
@@ -173,10 +188,66 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             nn.Linear(hidden_size, 100), nn.Sigmoid()
         )
 
+        self.add_viz_interface()
+
         # # as done by the authors
         # # maybe because R is othorgonal ?
         # nn.init.orthogonal_(self.head[-1].weight)
         # nn.init.constant_(self.head[-1].bias, 0)
+
+    def add_viz_interface(self):
+        
+        if self.pretrain_backbone == 'mmae':
+            def forward(self, x):
+                B, N, C = x.shape
+                qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+                q, k, v = qkv.unbind(0)   # make torchscript happy (cannot use tensor as tuple)
+
+                attn = (q @ k.transpose(-2, -1)) * self.scale
+                attn = attn.softmax(dim=-1)
+                attn = self.attn_drop(attn)
+
+                x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+                x = self.proj(x)
+                x = self.proj_drop(x)
+                return x, attn
+            self.vit.encoder[-1].attn.forward = types.MethodType(forward, self.vit.encoder[-1].attn)
+        else:
+            def forward(self, x):
+                B, N, C = x.shape
+                qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+                q, k, v = qkv.unbind(0)   # make torchscript happy (cannot use tensor as tuple)
+
+                attn = (q @ k.transpose(-2, -1)) * self.scale
+                attn = attn.softmax(dim=-1)
+                attn = self.attn_drop(attn)
+
+                x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+                x = self.proj(x)
+                x = self.proj_drop(x)
+                return x, attn
+            self.vit.blocks[-1].attn.forward = types.MethodType(forward, self.vit.blocks[-1].attn)
+        
+        if self.pretrain_backbone == 'mmae':
+            def forward(self, x, return_attention=False):
+                y, attn = self.attn(self.norm1(x))
+                if return_attention:
+                    return x, attn
+                else:
+                    x = x + self.drop_path(y)
+                    x = x + self.drop_path(self.mlp(self.norm2(x)))
+                    return x
+            self.vit.encoder[-1].forward = types.MethodType(forward, self.vit.encoder[-1])
+        else:
+            def forward(self, x, return_attention=False):
+                y, attn = self.attn(self.norm1(x))
+                if return_attention:
+                    return x, attn
+                else:
+                    x = x + self.drop_path1(self.ls1(y))
+                    x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
+                    return x
+            self.vit.blocks[-1].forward = types.MethodType(forward, self.vit.blocks[-1])
 
     def save_obs_as_img(self, x, file_name='model_obs'):
         import torchvision
@@ -184,8 +255,14 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         print(f'{file_name} | resolution {x.shape} | saved normalized obs at {file_path}')
         torchvision.utils.save_image(torchvision.utils.make_grid(x, nrow=x.shape[0]//2, normalize=True), file_path)
         
-    def forward(self, observation_pairs, actions, return_depth=False):
+    def preprocess(self, observation_pairs):
+        
+        rgb, depth = None, None
 
+        # strip model from "depth" observations if auxiliary depth loss is used
+        if self.depth_aux_loss:
+            del observation_pairs["depth"]
+            
         if "rgb" in observation_pairs.keys():
             
             # RGB -> b,h,w,3
@@ -220,11 +297,26 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             
             # interpolate to fit model
             depth = F.interpolate(depth, size=(self.obs_size_single[0]*2,self.obs_size_single[1]))
+
+        return rgb, depth
+
+
+    def forward(self, observation_pairs, actions, return_depth=False, return_attention=False):
+        
+        rgb, depth = self.preprocess(observation_pairs)
         
         if self.pretrain_backbone == 'mmae' and  "rgb" in observation_pairs.keys() and "depth" in observation_pairs.keys():
 
             input_dict = {'rgb': rgb, 'depth': depth}
-                        
+
+            if return_attention and self.cls_action:
+                features, attn = self.vit.forward(input_dict, actions, self.EMBED_DIM, return_attention=return_attention)
+                features = features[:,-1]
+
+            elif return_attention:
+                features, attn = self.vit.forward(input_dict, return_attention=return_attention)
+                features = features[:,-1]
+
             if self.cls_action:
                 features = self.vit.forward(input_dict, actions, self.EMBED_DIM)[:,-1]
             else:
@@ -249,7 +341,16 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 warnings.warn('WARNING: config.VO.MODEL.visual_type can not be processed by config.VO.MODEL.name = "vo_transformer_act_embed". Model will be BLIND!')
                 x = torch.zeros(len(actions), 3, self.obs_size[0], self.obs_size[1]).to(actions.device)
 
-            if self.cls_action:
+
+            if return_attention and self.cls_action:
+                features, attn = self.vit.forward_features(x, actions, self.EMBED_DIM, return_attention=return_attention)
+                features = features[:, 0]
+
+            elif return_attention:
+                features, attn = self.vit.forward_features(x, return_attention=return_attention)
+                features = features[:, 0]
+
+            elif self.cls_action:
                 features = self.vit.forward_features(x, actions, self.EMBED_DIM)[:, 0]
             else:
                 features = self.vit.forward_features(x)[:, 0]
@@ -263,4 +364,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         else:
             output_depth = None
 
-        return output, output_depth
+        if return_attention:
+            return output, attn
+        else:
+            return output, output_depth
