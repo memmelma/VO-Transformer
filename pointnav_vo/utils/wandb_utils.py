@@ -25,11 +25,11 @@ class WandbWriter:
                 self.run = wandb.init(project=project, entity="memmelma", config=vars(),
                                         mode="disabled" if config.TASK_CONFIG.DATASET.SPLIT != 'train' else None, reinit=True)
             
-            config_name = config.exp_config.split('/')[-1].split('.')[0]
-            run_name = '[' + wandb.run.name.replace('-', '_') + ']'
-            if 'pointnav_' in config_name:
-                config_name = config_name.replace('pointnav_', '')
-            wandb.run.name = config_name + run_name
+                config_name = config.exp_config.split('/')[-1].split('.')[0]
+                run_name = '[' + wandb.run.name.replace('-', '_') + ']'
+                if 'pointnav_' in config_name:
+                    config_name = config_name.replace('pointnav_', '')
+                wandb.run.name = config_name + run_name
 
     def __enter__(self):
         return self
