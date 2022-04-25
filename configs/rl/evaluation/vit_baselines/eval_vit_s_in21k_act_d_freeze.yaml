@@ -113,7 +113,7 @@ VO:
 
   REGRESS_MODEL:
 
-    visual_type: ["rgb", "depth", "top_down_view"]
+    visual_type: ["depth", "top_down_view"]
     regress_type: "unified_act"   # choices: ["unified_act", "sep_act"]
     mode: "det"  # choices: ["rnd", "det"]
     rnd_mode_n: 10
@@ -121,10 +121,10 @@ VO:
     pretrained_type: "regress_all_best"
     all_pretrained_ckpt: {
       "regress_all": {
-        "all": "train_log/vit/vo_vit_in21k_auxd_dt_20220408_152607479415_s_1/checkpoints/resume_20220411_160617607523/checkpoints/ckpt_epoch_150.pth",
+        "all": "train_log/vit/vo_vit_in21k_act_depth_freeze_dt_20220408_132041504687_s_1/checkpoints/resume_20220412_103118135938/checkpoints/ckpt_epoch_150.pth",
         },
       "regress_all_best": { 
-        "all": "train_log/vit/vo_vit_in21k_auxd_dt_20220408_152607479415_s_1/checkpoints/ckpt_epoch_15.pth",
+        "all": "train_log/vit/unique/vo_vit_s_in21k_act_d_freeze/checkpoints/ckpt_epoch_58.pth",
         },
     }
 

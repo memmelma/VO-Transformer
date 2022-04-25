@@ -113,7 +113,7 @@ VO:
 
   REGRESS_MODEL:
 
-    visual_type: ["rgb", "top_down_view"]
+    visual_type: ["rgb", "depth", "top_down_view"]
     regress_type: "unified_act"   # choices: ["unified_act", "sep_act"]
     mode: "det"  # choices: ["rnd", "det"]
     rnd_mode_n: 10
@@ -121,11 +121,11 @@ VO:
     pretrained_type: "regress_all_best"
     all_pretrained_ckpt: {
       "regress_all": {
-        "all": "train_log/vit/vo_vit_dino_act_freeze_dt_20220408_074044927314_s_1/checkpoints/ckpt_epoch_150.pth",
+        "all": "train_log/vit/vo_vit_base_dino_act_rgb_depth_dt_20220407_160241360733_s_1/checkpoints/resume_20220412_084050842721/checkpoints/ckpt_epoch_150.pth",
         },
-
       "regress_all_best": { 
-        "all": "train_log/vit/vo_vit_dino_act_freeze_dt_20220408_074044927314_s_1/checkpoints/ckpt_epoch_124.pth",
+        "all": "train_log/vit/unique/vo_vit_b_dino_act_rgbd/checkpoints/ckpt_epoch_67.pth
+",
         },
     }
 
@@ -134,9 +134,9 @@ VO:
 
     name: "vo_transformer_act_embed"
     # choices: 'small', 'base', 'large', 'hybrid'
-    visual_backbone: "small" 
+    visual_backbone: "base" 
     
-    train_backbone: False # True: also train the ViT encoder, False: freeze
+    train_backbone: True # True: also train the ViT encoder, False: freeze
     # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
     pretrain_backbone: 'dino'
     cls_action: True # True

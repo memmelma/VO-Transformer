@@ -37,10 +37,10 @@ VO:
     lr: 2.e-4
     
     weight_decay: 0.05 # we do not use weight decay in our experiments
-    scheduler: "cosine" # choices: 'none', 'cosine'
+    scheduler: "none" # choices: 'none', 'cosine'
     eps: 1.0e-8
     batch_size: 128 # [ A100: small rgbANDdepth 320 / small rgbORdepth 768 / base rgbANDdepth 160 ]
-    epochs: 150
+    epochs: 100
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
     log_grad: False
@@ -90,7 +90,7 @@ VO:
     # discretized_depth_channels: 10
     discretized_depth_channels: 0
     top_down_center_crop: False
-    dropout_p: 0 # 0.2
+    dropout_p: 0.
 
     # set pretrained to True if you want to fine-tune some checkpoints
     pretrained: False

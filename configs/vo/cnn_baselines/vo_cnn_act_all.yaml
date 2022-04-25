@@ -32,11 +32,11 @@ VO:
   TRAIN:
     lr: 2.5e-4
     backbone_lr: 2.5e-4
-    weight_decay: 0.0 # we do not use weight decay in our experiments
+    weight_decay: 0.05 # we do not use weight decay in our experiments
     scheduler: "none"
     eps: 1.0e-8
     batch_size: 256
-    epochs: 170
+    epochs: 100
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
     log_grad: False
@@ -44,7 +44,7 @@ VO:
     optim: "adamw"
     warm_up_steps: 10 # ~5-10% steps, e.g. 5 warmup, 100 train
     mixed_precision: True
-    max_clip_gradient_norm: 0.0 # vit: 1.0, off: 0.0
+    max_clip_gradient_norm: 1.0 # vit: 1.0, off: 0.0
     depth_aux_loss: 0.0 # requires visual_type: ["depth"]
     
     collision: "-1"   # whether to train w/ or w/o collision data. -1 means we train on all data no matter whether there is collsion or not.
