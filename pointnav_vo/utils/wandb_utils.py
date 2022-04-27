@@ -6,7 +6,7 @@ import torch
 
 
 class WandbWriter:
-    def __init__(self, config: Any, rank=0, project='vit-vo', *args: Any, **kwargs: Any):
+    def __init__(self, config: Any, rank=0, project='final', *args: Any, **kwargs: Any):
         r"""A Wrapper for wandb.
 
         Args:
