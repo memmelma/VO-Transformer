@@ -4,6 +4,8 @@ export POINTNAV_VO_ROOT=$PWD && \
 export PYTHONPATH=${POINTNAV_VO_ROOT}:$PYTHONPATH && \
 export NUMBA_NUM_THREADS=1 && \
 export NUMBA_THREADING_LAYER=workqueue && \
+export HOROVOD_GLOO_IFACE=em2
+
 # apply habitat sim fix
 # cp /datasets/home/memmel/PointNav-VO/WindowlessContext.cpp /home/memmel/habitat-sim/src/esp/gfx/WindowlessContext.cpp && \
 # cd /home/memmel/habitat-sim && \
@@ -12,6 +14,7 @@ export NUMBA_THREADING_LAYER=workqueue && \
 
 
 echo "Clean up..."
+# pkill python
 # grep PID of python process listening to some port, kill the process, redirect kill --help to /dev/null if no PID found
 out=$(netstat -nltp | grep "/python" | awk '{print $NF}' | awk -F/ '{print $1}' | xargs kill -9 2> /dev/null)
 # check error code
@@ -39,7 +42,6 @@ then
 fi
 
 # exec script
-ulimit -n 65000 && \
 python ${POINTNAV_VO_ROOT}/launch.py \
 --repo-path ${POINTNAV_VO_ROOT} \
 --n_gpus 1 \
