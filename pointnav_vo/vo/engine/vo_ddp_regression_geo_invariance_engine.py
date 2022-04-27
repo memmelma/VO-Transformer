@@ -43,7 +43,7 @@ from pointnav_vo.utils.config_utils import update_config_log
 from pointnav_vo.utils.baseline_registry import baseline_registry
 from pointnav_vo.vo.engine.vo_base_engine import VOBaseEngine
 
-TRAIN_NUM_WORKERS =  multiprocessing.cpu_count() // 2
+TRAIN_NUM_WORKERS = 10
 EVAL_NUM_WORKERS = 10
 # PREFETCH_FACTOR = 2
 TIMEOUT = 10 * 60
@@ -1366,9 +1366,9 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                 ), f"The number of data as {total_size} does not match dataset length {target_size}."
 
                 if "transformer" in self.config.VO.MODEL.name:
-                    batch_pairs["rgb"] = batch_pairs["rgb"][0].unsqueeze(0)
-                    batch_pairs["depth"] = batch_pairs["depth"][0].unsqueeze(0)
-                    batch_pairs["actions"] = batch_pairs["actions"][0].unsqueeze(0)
+                    # batch_pairs["rgb"] = batch_pairs["rgb"][0].unsqueeze(0)
+                    # batch_pairs["depth"] = batch_pairs["depth"][0].unsqueeze(0)
+                    # batch_pairs["actions"] = batch_pairs["actions"][0].unsqueeze(0)
 
                     features, batch_pairs["self_attention"] = self.vo_model[-1](batch_pairs, batch_pairs["actions"], return_attention=True)
                     self._attn_log_func(writer, epoch, batch_pairs)
@@ -1761,6 +1761,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         self, writer, global_step, batch_pairs,
     ):
 
+        plot_idx = torch.randint(0, batch_pairs["rgb"].shape[0], (1,1)).item()
+
         nh = batch_pairs["self_attention"].shape[1] # number of head
         obs_size = self.vo_model[-1].module.obs_size
         obs_size_single = self.vo_model[-1].module.obs_size_single
@@ -1773,32 +1775,37 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
 
         path_size = 16
 
-        attn = batch_pairs["self_attention"][0, :, cls_token_idx, 1:].reshape(nh, -1)
+        attn = batch_pairs["self_attention"][plot_idx, :, cls_token_idx, 1:].reshape(nh, -1)
         attn = attn.reshape(nh, obs_size[0]//path_size, obs_size[1]//path_size)
         attn = torch.nn.functional.interpolate(attn.unsqueeze(0), scale_factor=path_size, mode="nearest")[0]
 
-        if "rgb" in self._observation_space:
-            rgb = batch_pairs["rgb"][0].unsqueeze(0)
+        rgb_check = "rgb" in self._observation_space
+        # dont visualize depth when aux depth loss is used
+        depth_check = "depth" in self._observation_space and not self.config.VO.TRAIN.depth_aux_loss
+
+        if rgb_check:
+            rgb = batch_pairs["rgb"][plot_idx].unsqueeze(0)
             rgb = torch.cat((rgb[:,:,:,:rgb.shape[-1]//2], rgb[:,:,:,rgb.shape[-1]//2:]),dim=1)
             rgb = rgb.permute(0,3,1,2).contiguous()
             rgb = torch.nn.functional.interpolate(rgb, size=(obs_size_single[0]*2,obs_size_single[1]))
             img = rgb
-        if "depth" in self._observation_space:
-            depth =  batch_pairs["depth"][0].unsqueeze(0)
+        if depth_check:
+            depth =  batch_pairs["depth"][plot_idx].unsqueeze(0)
             depth = torch.cat((depth[:,:,:,:depth.shape[-1]//2], depth[:,:,:,depth.shape[-1]//2:]),dim=1)
             depth = depth.permute(0,3,1,2).contiguous()
             depth = torch.nn.functional.interpolate(depth, size=(obs_size_single[0]*2,obs_size_single[1]))
             depth = depth.expand(-1, 3, -1, -1) * 255.
             img = depth
         
-        if "rgb" in self._observation_space and "depth" in self._observation_space:
+        if rgb_check and depth_check:
             img = torch.cat((rgb,depth),dim=2)
 
         attn = attn.cpu().numpy()
 
-        attn_mean = np.mean(attn, axis=0)
-        attn_mean = cm.viridis(attn_mean)
-        attn_mean = (attn_mean * 255).astype(np.uint8)
+        attn_sum = np.sum(attn, axis=0)
+        # attn_sum = cm.viridis(attn_sum)
+        attn_sum = cm.inferno(attn_sum)
+        attn_sum = (attn_sum * 255).astype(np.uint8)
         
         img = img.cpu().numpy().squeeze()
         img = img.astype(np.uint8).transpose(1,2,0)
@@ -1810,17 +1817,17 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                         dataformats="HWC",
                     )
 
-        overlay = cv2.addWeighted(attn_mean[:,:,:-1], 0.8, img, 0.6, 0.0)
+        overlay = cv2.addWeighted(attn_sum[:,:,:-1], 0.8, img, 0.6, 0.0)
 
         writer.add_pil_image(
-                "attention/mean_overlay",
+                "attention/sum_overlay",
                 Image.fromarray(overlay),
                 global_step,
                 dataformats="HWC",
             )
         writer.add_pil_image(
-                "attention/mean",
-                Image.fromarray(attn_mean),
+                "attention/sum",
+                Image.fromarray(attn_sum),
                 global_step,
                 dataformats="HWC",
             )
@@ -1829,7 +1836,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         heads = None
         for i, head in enumerate(attn):
 
-            head = cm.viridis(head)
+            # head = cm.viridis(head)
+            head = cm.inferno(head)
             head = (head * 255).astype(np.uint8)
         
             overlay = cv2.addWeighted(head[:,:,:-1], 0.8, img, 0.6, 0.0)
