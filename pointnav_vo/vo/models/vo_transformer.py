@@ -64,6 +64,9 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             'base': 768,
         }
 
+        # NOTE
+        hidden_size = self.feature_dimensions[backbone] // 2
+
         self.supported_pretraining = {
             'small': ['in21k', 'dino'],
             'base': ['in21k', 'dino', 'mmae'],
