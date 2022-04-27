@@ -1283,6 +1283,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         pred_deltas = {}
 
         nbatches = np.ceil(len(eval_loader.dataset) / EVAL_BATCHSIZE)
+        
+        logged_attn = False
 
         with tqdm(total=nbatches) as pbar:
 
@@ -1365,14 +1367,11 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                     total_size == target_size
                 ), f"The number of data as {total_size} does not match dataset length {target_size}."
 
-                if "transformer" in self.config.VO.MODEL.name:
-                    # batch_pairs["rgb"] = batch_pairs["rgb"][0].unsqueeze(0)
-                    # batch_pairs["depth"] = batch_pairs["depth"][0].unsqueeze(0)
-                    # batch_pairs["actions"] = batch_pairs["actions"][0].unsqueeze(0)
-
+                if "transformer" in self.config.VO.MODEL.name and not logged_attn and self.config.VO.MODEL.visual_type:
                     features, batch_pairs["self_attention"] = self.vo_model[-1](batch_pairs, batch_pairs["actions"], return_attention=True)
                     self._attn_log_func(writer, epoch, batch_pairs)
-                        
+                    logged_attn = True
+
                 # NOTE
                 del eval_iter
                 time.sleep(2)
@@ -1493,6 +1492,7 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                         total_abs_diff_geo_inverse_rot / (total_size / 2),
                         total_abs_diff_geo_inverse_pos / (total_size / 2),
                     )
+
         return total_loss / total_size
     
     def _compute_and_update_info(
@@ -1769,13 +1769,16 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
 
         # we keep only the output patch attention
         if self.config.VO.MODEL.pretrain_backbone == 'mmae':
+            # last token is cls token
             cls_token_idx = -1
+            attn = batch_pairs["self_attention"][plot_idx, :, -1, :-1].reshape(nh, -1)
+
         else:
+            # first token is cls token
             cls_token_idx = 0
+            attn = batch_pairs["self_attention"][plot_idx, :, 0, 1:].reshape(nh, -1)
 
         path_size = 16
-
-        attn = batch_pairs["self_attention"][plot_idx, :, cls_token_idx, 1:].reshape(nh, -1)
         attn = attn.reshape(nh, obs_size[0]//path_size, obs_size[1]//path_size)
         attn = torch.nn.functional.interpolate(attn.unsqueeze(0), scale_factor=path_size, mode="nearest")[0]
 
@@ -1800,15 +1803,9 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         if rgb_check and depth_check:
             img = torch.cat((rgb,depth),dim=2)
 
-        attn = attn.cpu().numpy()
-
-        attn_sum = np.sum(attn, axis=0)
-        # attn_sum = cm.viridis(attn_sum)
-        attn_sum = cm.inferno(attn_sum)
-        attn_sum = (attn_sum * 255).astype(np.uint8)
-        
+        # log plain image
         img = img.cpu().numpy().squeeze()
-        img = img.astype(np.uint8).transpose(1,2,0)
+        img = np.uint8(img).transpose(1,2,0)
 
         writer.add_pil_image(
                         "attention/obs",
@@ -1817,51 +1814,113 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                         dataformats="HWC",
                     )
 
-        overlay = cv2.addWeighted(attn_sum[:,:,:-1], 0.8, img, 0.6, 0.0)
+        attn = attn.cpu().numpy()
+        attn_agg = np.max(attn, axis=0) # aggregate heads w/ max (optional: min, mean)
+        attn_agg = attn_agg / attn_agg.max()
+        
+        attn_agg_viridis = cm.viridis(attn_agg)
+        attn_agg_inferno = cm.inferno(attn_agg)
+
+        attn_agg_viridis = np.uint8(attn_agg_viridis[:,:,:-1] * 255)
+        attn_agg_inferno = np.uint8(attn_agg_inferno[:,:,:-1] * 255)
 
         writer.add_pil_image(
-                "attention/sum_overlay",
-                Image.fromarray(overlay),
+                "attention/max_viridis",
+                Image.fromarray(attn_agg_viridis),
                 global_step,
                 dataformats="HWC",
             )
         writer.add_pil_image(
-                "attention/sum",
-                Image.fromarray(attn_sum),
+                "attention/max_inferno",
+                Image.fromarray(attn_agg_inferno),
                 global_step,
                 dataformats="HWC",
             )
 
-        heads_overlay = None
-        heads = None
+        overlay_viridis = cv2.addWeighted(attn_agg_viridis, 0.8, img, 0.6, 0.0)
+        overlay_inferno = cv2.addWeighted(attn_agg_inferno, 0.8, img, 0.6, 0.0)
+
+        writer.add_pil_image(
+                "attention/max_overlay_viridis",
+                Image.fromarray(overlay_viridis),
+                global_step,
+                dataformats="HWC",
+            )
+        writer.add_pil_image(
+                "attention/max_overlay_inferno",
+                Image.fromarray(overlay_inferno),
+                global_step,
+                dataformats="HWC",
+            )
+
+        
+        heads_overlay_viridis = None
+        heads_overlay_inferno = None
+
+        heads_viridis = None
+        heads_inferno = None
+
         for i, head in enumerate(attn):
 
-            # head = cm.viridis(head)
-            head = cm.inferno(head)
-            head = (head * 255).astype(np.uint8)
-        
-            overlay = cv2.addWeighted(head[:,:,:-1], 0.8, img, 0.6, 0.0)
+            head = head / head.max()
 
-            if heads_overlay is None:
-                heads_overlay = overlay
-            else:
-                heads_overlay = np.concatenate((heads_overlay,overlay), axis=1)
+            head_viridis = cm.viridis(head)
+            head_viridis = np.uint8(head_viridis[:,:,:-1] * 255)
 
-            if heads is None:
-                heads = head[:,:,:-1]
+            overlay_viridis = cv2.addWeighted(head_viridis, 0.8, img, 0.6, 0.0)
+
+            if heads_overlay_viridis is None:
+                heads_overlay_viridis = overlay_viridis
             else:
-                heads = np.concatenate((heads,head[:,:,:-1]), axis=1)
+                heads_overlay_viridis = np.concatenate((heads_overlay_viridis,overlay_viridis), axis=1)
+
+            if heads_viridis is None:
+                heads_viridis = head_viridis
+            else:
+                heads_viridis = np.concatenate((heads_viridis,head_viridis), axis=1)
+
+
+            head_inferno = cm.inferno(head)
+            head_inferno = np.uint8(head_inferno[:,:,:-1] * 255)
+
+            overlay_inferno = cv2.addWeighted(head_inferno, 0.8, img, 0.6, 0.0)
+
+            if heads_overlay_inferno is None:
+                heads_overlay_inferno = overlay_inferno
+            else:
+                heads_overlay_inferno = np.concatenate((heads_overlay_inferno,overlay_inferno), axis=1)
+
+            if heads_inferno is None:
+                heads_inferno = head_inferno
+            else:
+                heads_inferno = np.concatenate((heads_inferno,head_inferno), axis=1)
+
+            
 
         writer.add_pil_image(
-                f"attention_heads/heads_overlay",
-                Image.fromarray(heads_overlay),
+                f"attention_heads/heads_overlay_viridis",
+                Image.fromarray(heads_overlay_viridis),
                 global_step,
                 dataformats="HWC",
             )
 
         writer.add_pil_image(
-                f"attention_heads/heads",
-                Image.fromarray(heads),
+                f"attention_heads/heads_viridis",
+                Image.fromarray(heads_viridis),
+                global_step,
+                dataformats="HWC",
+            )
+
+        writer.add_pil_image(
+                f"attention_heads/heads_overlay_inferno",
+                Image.fromarray(heads_overlay_inferno),
+                global_step,
+                dataformats="HWC",
+            )
+
+        writer.add_pil_image(
+                f"attention_heads/heads_inferno",
+                Image.fromarray(heads_inferno),
                 global_step,
                 dataformats="HWC",
             )
