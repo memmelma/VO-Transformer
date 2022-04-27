@@ -173,6 +173,31 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                     return x
 
             self.vit.forward_features = types.MethodType(forward_features, self.vit)
+        else:
+            def forward_features(self, x, return_attention=False):
+                x = self.patch_embed(x)
+                x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
+                x = self.pos_drop(x + self.pos_embed)
+                if self.grad_checkpointing and not torch.jit.is_scripting():
+                    x = checkpoint_seq(self.blocks, x)
+                else:
+                    if return_attention:
+                        for i, blk in enumerate(self.blocks):
+                            if i < len(self.blocks) - 1:
+                                x = blk(x)
+                            else:
+                                x, attn = blk(x, return_attention=return_attention)
+                    else:
+                        x = self.blocks(x)
+
+                x = self.norm(x)
+                
+                if return_attention:
+                    return x, attn
+                else:
+                    return x
+
+            self.vit.forward_features = types.MethodType(forward_features, self.vit)
 
         if normalize_visual_inputs:
             self.running_mean_and_var_rgb = RunningMeanAndVar(3)
