@@ -1761,8 +1761,17 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         self, writer, global_step, batch_pairs,
     ):
 
-        plot_idx = torch.randint(0, batch_pairs["rgb"].shape[0], (1,1)).item()
+        rgb_check = "rgb" in self._observation_space
+        # dont visualize depth when aux depth loss is used
+        depth_check = "depth" in self._observation_space and not self.config.VO.TRAIN.depth_aux_loss
 
+        if rgb_check:
+            plot_idx = torch.randint(0, batch_pairs["rgb"].shape[0], (1,1)).item()
+        elif depth_check:
+            plot_idx = torch.randint(0, batch_pairs["depth"].shape[0], (1,1)).item()
+        else:
+            return
+        
         nh = batch_pairs["self_attention"].shape[1] # number of head
         obs_size = self.vo_model[-1].module.obs_size
         obs_size_single = self.vo_model[-1].module.obs_size_single
@@ -1781,10 +1790,6 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         path_size = 16
         attn = attn.reshape(nh, obs_size[0]//path_size, obs_size[1]//path_size)
         attn = torch.nn.functional.interpolate(attn.unsqueeze(0), scale_factor=path_size, mode="nearest")[0]
-
-        rgb_check = "rgb" in self._observation_space
-        # dont visualize depth when aux depth loss is used
-        depth_check = "depth" in self._observation_space and not self.config.VO.TRAIN.depth_aux_loss
 
         if rgb_check:
             rgb = batch_pairs["rgb"][plot_idx].unsqueeze(0)
@@ -1815,8 +1820,31 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                     )
 
         attn = attn.cpu().numpy()
-        attn_agg = np.max(attn, axis=0) # aggregate heads w/ max (optional: min, mean)
-        attn_agg = attn_agg / attn_agg.max()
+        attn_agg_max = np.max(attn, axis=0)
+        attn_agg_mean = np.mean(attn, axis=0)
+        attn_agg_min = np.min(attn, axis=0) 
+        
+        writer.add_pil_image(
+                "attention_raw/max",
+                Image.fromarray(np.uint8(attn_agg_max * 255)),
+                global_step,
+                dataformats="HWC",
+            )
+        writer.add_pil_image(
+                "attention_raw/mean",
+                Image.fromarray(np.uint8(attn_agg_mean * 255)),
+                global_step,
+                dataformats="HWC",
+            )
+        writer.add_pil_image(
+                "attention_raw/min",
+                Image.fromarray(np.uint8(attn_agg_min * 255)),
+                global_step,
+                dataformats="HWC",
+            )
+        
+        # aggregate heads w/ max (optional: min, mean)
+        attn_agg = attn_agg_max / attn_agg_max.max()
         
         attn_agg_viridis = cm.viridis(attn_agg)
         attn_agg_inferno = cm.inferno(attn_agg)
