@@ -124,7 +124,7 @@ VO:
         "all": "train_log/vit/vo_vit_scratch_act_rgb_depth_dt_20220411_155837035976_s_1/checkpoints/ckpt_epoch_150.pth",
         },
       "regress_all_best": { 
-        "all": "train_log/vit/vo_vit_scratch_act_rgb_depth_dt_20220411_155837035976_s_1/checkpoints/ckpt_epoch_44.pth",
+        "all": "train_log/final/vit/unique/vo_vit_s_scratch_act_rgbd/checkpoints/best_vo.pth",
         },
     }
 

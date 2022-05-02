@@ -124,7 +124,7 @@ VO:
         "all": "train_log/cnn/vo_cnn_in21k_act_all_dt_20220407_154241817561_s_1/checkpoints/resume_20220414_010506902240/checkpoints/resume_20220415_085620932761/checkpoints/ckpt_epoch_150.pth",
         },
       "regress_best": { 
-        "forward": "train_log/cnn/vo_cnn_fwd_dt_20220415_085629656585_s_1/checkpoints/ckpt_epoch_150.pth",
+        "forward": "train_log/final/cnn/unique/vo_cnn_fwd/checkpoints/best_vo.pth",
         "left": "pretrained_ckpts/vo/act_left_right_inv_joint.pth",
         "right": "pretrained_ckpts/vo/act_left_right_inv_joint.pth",
       },

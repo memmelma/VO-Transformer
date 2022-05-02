@@ -126,7 +126,7 @@ VO:
         "all": "train_log/cnn/vo_cnn_in21k_act_rgb_dt_20220407_154239410642_s_1/checkpoints/ckpt_epoch_150.pth",
         },
       "regress_all_best": { 
-        "all": "train_log/cnn/vo_cnn_in21k_act_rgb_dt_20220407_154239410642_s_1/checkpoints/ckpt_epoch_138.pth",
+        "all": "train_log/final/cnn/unique/vo_cnn_in21k_act_rgb/checkpoints/best_vo.pth",
         },
     }
 
