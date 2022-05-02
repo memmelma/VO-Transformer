@@ -331,6 +331,13 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
     def forward(self, observation_pairs, actions, return_depth=False, return_attention=False):
         
+        drop_obs = []
+        for obs in observation_pairs.keys():
+            if obs not in self.observation_space:
+                drop_obs += [obs]
+        for obs in drop_obs:
+            del observation_pairs[obs]
+
         rgb, depth = self.preprocess(observation_pairs)
         
         if self.pretrain_backbone == 'mmae' and  "rgb" in observation_pairs.keys() and "depth" in observation_pairs.keys():

@@ -99,6 +99,8 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                         converted_weights = {}
                         keys = weights.keys()
                         for key in keys:
+                            if key == 'module.vit.cls_token':
+                                continue
                             new_key = key.split("module.")[-1]
                             converted_weights[new_key] = weights[key]
                         return converted_weights
@@ -107,7 +109,7 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                         self.vo_model[k].load_state_dict(pretrained_ckpt["model_state"])
                     elif "model_states" in pretrained_ckpt:
                         self.vo_model[k].load_state_dict(
-                            convert_dataparallel_weights(pretrained_ckpt["model_states"][ACT_NAME2IDX[k]])
+                            convert_dataparallel_weights(pretrained_ckpt["model_states"][ACT_NAME2IDX[k]]), strict=False,
                         )
                     else:
                         raise ValueError
