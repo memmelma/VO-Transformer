@@ -30,6 +30,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         *,
         observation_space,
         observation_strip=[],
+        observation_strip_proba=1.0,
         backbone='base', # 'small', 'base'
         cls_action = True,
         train_backbone=False,
@@ -50,6 +51,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         self.pretrain_backbone = pretrain_backbone
         self.observation_space = observation_space
         self.observation_strip = observation_strip
+        self.observation_strip_proba = observation_strip_proba
         self.depth_aux_loss = depth_aux_loss
 
         self.obs_size_single = obs_size_single
@@ -347,7 +349,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             input_dict = {'rgb': rgb, 'depth': depth}
 
             # evaluation: strip away input
-            for strip in self.observation_strip:
+            for strip in self.observation_strip and bool(torch.bernoulli(torch.tensor(self.observation_strip_proba))):
                 del input_dict[strip]
 
             if return_attention and self.cls_action:
@@ -394,7 +396,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
             elif self.cls_action:
                 # evaluation: strip away input
-                if self.observation_strip:
+                if self.observation_strip and bool(torch.bernoulli(torch.tensor(self.observation_strip_proba))):
                     x = self.vit.patch_embed(x)
                     self.vit.cls_token = torch.nn.Parameter(self.vit.embed(actions).reshape(x.shape[0], 1, self.EMBED_DIM), requires_grad=False)
                     x = torch.cat((self.vit.cls_token, x), dim=1)
@@ -411,7 +413,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                     features = self.vit.forward_features(x, actions, self.EMBED_DIM)[:, 0]
             else:
                 # evaluation: strip away input
-                if self.observation_strip:
+                if self.observation_strip and bool(torch.bernoulli(torch.tensor(self.observation_strip_proba))):
                     x = self.vit.patch_embed(x)
                     x = torch.cat((self.vit.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
                     x = self.vit.pos_drop(x + self.vit.pos_embed)
