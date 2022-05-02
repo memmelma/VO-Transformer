@@ -1797,6 +1797,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
             rgb = rgb.permute(0,3,1,2).contiguous()
             rgb = torch.nn.functional.interpolate(rgb, size=(obs_size_single[0]*2,obs_size_single[1]))
             img = rgb
+            if self._observation_space.count("rgb") == 2:
+                img = torch.cat((rgb,rgb),dim=2)
         if depth_check:
             depth =  batch_pairs["depth"][plot_idx].unsqueeze(0)
             depth = torch.cat((depth[:,:,:,:depth.shape[-1]//2], depth[:,:,:,depth.shape[-1]//2:]),dim=1)
@@ -1804,7 +1806,9 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
             depth = torch.nn.functional.interpolate(depth, size=(obs_size_single[0]*2,obs_size_single[1]))
             depth = depth.expand(-1, 3, -1, -1) * 255.
             img = depth
-        
+            if self._observation_space.count("depth") == 2:
+                img = torch.cat((depth,depth),dim=2)
+
         if rgb_check and depth_check:
             img = torch.cat((rgb,depth),dim=2)
 

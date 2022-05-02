@@ -52,7 +52,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
         self.obs_size_single = obs_size_single
         if ("rgb" in self.observation_space and "depth" in self.observation_space and not self.depth_aux_loss) \
-        or (self.observation_space.count("rgb") == 2):
+        or (self.observation_space.count("rgb") == 2) or (self.observation_space.count("depth") == 2):
             self.obs_size = (self.obs_size_single[0]*4, self.obs_size_single[1])
         else:
             self.obs_size = (self.obs_size_single[0]*2, self.obs_size_single[1])
@@ -365,6 +365,8 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 x = rgb
             elif "depth" in observation_pairs.keys():
                 x = depth
+            elif "depth" in observation_pairs.keys() and self.observation_space.count("depth") == 2:
+                x = torch.cat((depth,depth),dim=2)
             else:
                 warnings.warn('WARNING: config.VO.MODEL.visual_type can not be processed by config.VO.MODEL.name = "vo_transformer_act_embed". Model will be BLIND!')
                 x = torch.zeros(len(actions), 3, self.obs_size[0], self.obs_size[1]).to(actions.device)
