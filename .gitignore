@@ -161,3 +161,5 @@ imgs_debug*
 *.pth
 # images
 *.png
+
+plots
