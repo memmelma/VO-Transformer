@@ -16,7 +16,15 @@ then
         cd /home/memmel/habitat-sim && \
         python setup.py install --headless > /dev/null 2> /dev/null && \
         cd $POINTNAV_VO_ROOT
-
+        
+        echo "Install timm..."
+        ${POINTNAV_VO_ROOT}/login_git.sh && \
+        cd /home/memmel/ && \
+        git clone https://github.com/rwightman/pytorch-image-models.git && \
+        cd /home/memmel/pytorch-image-models && \
+        pip install -e . && \
+        cd ${POINTNAV_VO_ROOT}
+        
         echo "Login git..."
         ${POINTNAV_VO_ROOT}/login_git.sh
 
