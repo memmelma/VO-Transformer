@@ -133,17 +133,21 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
                 dropout_p=0.2,
                 n_acts=N_ACTS,
             )
+        
         checkpoint = torch.load(pretrained_weights, map_location=device)
+
         def convert_dataparallel_weights(weights):
             converted_weights = {}
             keys = weights.keys()
             for key in keys:
+                if 'vit.cls_token' in key:
+                    continue
                 new_key = key.split("module.")[-1]
                 converted_weights[new_key] = weights[key]
             return converted_weights
         model_state = convert_dataparallel_weights(checkpoint['model_states'][-1])
 
-        model.load_state_dict(model_state, strict=True)
+        model.load_state_dict(model_state, strict=False)
         vit = model.vit
 
         print(f'Loaded pretrained weights backbone:{backbone} pretrain_backbone:{pretrain_backbone}!')
@@ -201,8 +205,8 @@ def load_model(backbone='small', pretrain_backbone='in21k', pretrained_weights='
 
         print(f'Loaded backbone:{backbone} pretrain_backbone:{pretrain_backbone}!')
 
-    if pretrain_backbone != 'dino':
-        vit = prepare_timm_model(vit)
+    # if pretrain_backbone != 'dino':
+    #     vit = prepare_timm_model(vit)
 
     assert vit is not None, f'Couldn\'t load model! Select one of the supported combinations | backbone: [pretraining] | {supported_pretraining}'
     return vit
