@@ -29,6 +29,8 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         self,
         *,
         observation_space,
+        observation_strip=[],
+        observation_strip_proba=1.0,
         backbone='base', # 'small', 'base'
         cls_action = True,
         train_backbone=False,
@@ -48,6 +50,8 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         self.cls_action = cls_action
         self.pretrain_backbone = pretrain_backbone
         self.observation_space = observation_space
+        self.observation_strip = observation_strip
+        self.observation_strip_proba = observation_strip_proba
         self.depth_aux_loss = depth_aux_loss
 
         self.obs_size_single = obs_size_single
@@ -259,21 +263,21 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         if self.pretrain_backbone == 'mmae':
             def forward(self, x, return_attention=False):
                 y, attn = self.attn(self.norm1(x))
+                x = x + self.drop_path(y)
+                x = x + self.drop_path(self.mlp(self.norm2(x)))
                 if return_attention:
                     return x, attn
                 else:
-                    x = x + self.drop_path(y)
-                    x = x + self.drop_path(self.mlp(self.norm2(x)))
                     return x
             self.vit.encoder[-1].forward = types.MethodType(forward, self.vit.encoder[-1])
         else:
             def forward(self, x, return_attention=False):
                 y, attn = self.attn(self.norm1(x))
+                x = x + self.drop_path1(self.ls1(y))
+                x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
                 if return_attention:
                     return x, attn
                 else:
-                    x = x + self.drop_path1(self.ls1(y))
-                    x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
                     return x
             self.vit.blocks[-1].forward = types.MethodType(forward, self.vit.blocks[-1])
 
@@ -344,6 +348,10 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
             input_dict = {'rgb': rgb, 'depth': depth}
 
+            # evaluation: strip away input
+            for strip in self.observation_strip and bool(torch.bernoulli(torch.tensor(self.observation_strip_proba))):
+                del input_dict[strip]
+
             if return_attention and self.cls_action:
                 features, attn = self.vit.forward(input_dict, actions, self.EMBED_DIM, return_attention=return_attention)
                 features = features[:,-1]
@@ -378,7 +386,6 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 warnings.warn('WARNING: config.VO.MODEL.visual_type can not be processed by config.VO.MODEL.name = "vo_transformer_act_embed". Model will be BLIND!')
                 x = torch.zeros(len(actions), 3, self.obs_size[0], self.obs_size[1]).to(actions.device)
 
-
             if return_attention and self.cls_action:
                 features, attn = self.vit.forward_features(x, actions, self.EMBED_DIM, return_attention=return_attention)
                 features = features[:, 0]
@@ -388,9 +395,38 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 features = features[:, 0]
 
             elif self.cls_action:
-                features = self.vit.forward_features(x, actions, self.EMBED_DIM)[:, 0]
+                # evaluation: strip away input
+                if self.observation_strip and bool(torch.bernoulli(torch.tensor(self.observation_strip_proba))):
+                    x = self.vit.patch_embed(x)
+                    self.vit.cls_token = torch.nn.Parameter(self.vit.embed(actions).reshape(x.shape[0], 1, self.EMBED_DIM), requires_grad=False)
+                    x = torch.cat((self.vit.cls_token, x), dim=1)
+                    x = self.vit.pos_drop(x + self.vit.pos_embed)
+                    if "rgb" in self.observation_strip:
+                        split = ((x.shape[1]-1)//2)
+                        x = torch.cat((x[:,0].unsqueeze(1), x[:,1:][:,:split]), dim=1)
+                    elif "depth" in self.observation_strip:
+                        split = ((x.shape[1]-1)//2)
+                        x = torch.cat((x[:,0].unsqueeze(1), x[:,1:][:,split:]), dim=1)
+                    x = self.vit.blocks(x)
+                    features = self.vit.norm(x)[:, 0]
+                else:
+                    features = self.vit.forward_features(x, actions, self.EMBED_DIM)[:, 0]
             else:
-                features = self.vit.forward_features(x)[:, 0]
+                # evaluation: strip away input
+                if self.observation_strip and bool(torch.bernoulli(torch.tensor(self.observation_strip_proba))):
+                    x = self.vit.patch_embed(x)
+                    x = torch.cat((self.vit.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
+                    x = self.vit.pos_drop(x + self.vit.pos_embed)
+                    if "rgb" in self.observation_strip:
+                        split = ((x.shape[1]-1)//2)
+                        x = torch.cat((x[:,0].unsqueeze(1), x[:,1:][:,:split]), dim=1)
+                    elif "depth" in self.observation_strip:
+                        split = ((x.shape[1]-1)//2)
+                        x = torch.cat((x[:,0].unsqueeze(1), x[:,1:][:,split:]), dim=1)
+                    x = self.vit.blocks(x)
+                    features = self.vit.norm(x)[:, 0]
+                else:
+                    features = self.vit.forward_features(x)[:, 0]
 
         # compute VO parameters
         output = self.head(features)

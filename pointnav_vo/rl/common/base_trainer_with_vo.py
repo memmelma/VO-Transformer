@@ -67,6 +67,8 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
             for k in model_names:
                 self.vo_model[k] = vo_model_cls(
                     observation_space=all_cfg.VO.REGRESS_MODEL.visual_type,
+                    observation_strip=all_cfg.VO.REGRESS_MODEL.visual_strip if hasattr(all_cfg.VO.REGRESS_MODEL, "visual_strip") else [],
+                    observation_strip_proba=all_cfg.VO.REGRESS_MODEL.visual_strip if hasattr(all_cfg.VO.REGRESS_MODEL, "visual_strip_proba") else 1.0,
                     observation_size=(
                         self.config.VO.VIS_SIZE_W,
                         self.config.VO.VIS_SIZE_H,
