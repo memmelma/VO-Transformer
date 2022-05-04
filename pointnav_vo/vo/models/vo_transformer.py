@@ -370,10 +370,10 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 x = torch.cat((rgb,rgb),dim=2)
             elif "rgb" in observation_pairs.keys():
                 x = rgb
-            elif "depth" in observation_pairs.keys():
-                x = depth
             elif "depth" in observation_pairs.keys() and self.observation_space.count("depth") == 2:
                 x = torch.cat((depth,depth),dim=2)
+            elif "depth" in observation_pairs.keys():
+                x = depth
             else:
                 warnings.warn('WARNING: config.VO.MODEL.visual_type can not be processed by config.VO.MODEL.name = "vo_transformer_act_embed". Model will be BLIND!')
                 x = torch.zeros(len(actions), 3, self.obs_size[0], self.obs_size[1]).to(actions.device)
