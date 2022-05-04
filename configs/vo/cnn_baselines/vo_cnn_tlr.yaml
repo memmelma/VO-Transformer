@@ -89,8 +89,8 @@ VO:
     pretrained: True
     pretrained_ckpt: {
       # "forward": "ckpt_forward.pth",
-        "left": "train_log/cnn/vo_cnn_tl_dt_20220415_085631433397_s_1/checkpoints/ckpt_epoch_75.pth",
-        "right": "train_log/cnn/vo_cnn_tr_dt_20220415_085623523157_s_1/checkpoints/ckpt_epoch_75.pth",
+        "left": "train_log/final/cnn/unique/vo_cnn_tl/checkpoints/best_vo.pth",
+        "right": "train_log/final/cnn/unique/vo_cnn_tr/checkpoints/best_vo.pth",
     }
 
   REGRESSION:
