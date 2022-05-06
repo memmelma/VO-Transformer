@@ -3,7 +3,7 @@ BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
 ENGINE_NAME: "vo_ddp_regression_geo_invariance_engine"
 
 # logging settings
-LOG_DIR: "train_log/final/vit/unique/"
+LOG_DIR: "train_log/final/cnn/unique"
 LOG_FILE: "{{LOG_DIR}}/train.log"
 INFO_DIR: "{{LOG_DIR}}/infos"
 CHECKPOINT_FOLDER: "{{LOG_DIR}}/checkpoints"
@@ -16,7 +16,7 @@ N_GPUS: -1 # -1 equals all available GPUs
 DEBUG: False
 
 RESUME_TRAIN: True
-RESUME_STATE_FILE: "auto" # path to the checkpoint you want to resume training from
+RESUME_STATE_FILE: "auto"   # path to the checkpoint you want to resume training from
 RESUME_STATE_PATH: ""
 
 # evaluation settings
@@ -31,15 +31,14 @@ VO:
   VIS_SIZE_H: 192
 
   TRAIN:
-    # we use
-    # - 2.5e-4 for training from the scratch
-    # - 1.5e-4 for joint training left-right model with geometric invariance loss
+    # lr: 2.e-4 
+    # backbone_lr: 1.5e-4 
     lr: 2.e-4
-    
+    backbone_lr: 2.e-4
     weight_decay: 0.0 # we do not use weight decay in our experiments
-    scheduler: "none" # choices: 'none', 'cosine'
+    scheduler: "none"
     eps: 1.0e-8
-    batch_size: 512 # [ A100: small rgbANDdepth 320 / small rgbORdepth 768 / base rgbANDdepth 160 ]
+    batch_size: 256
     epochs: 150
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
@@ -48,8 +47,8 @@ VO:
     optim: "adamw"
     warm_up_steps: 10 # ~5-10% steps, e.g. 5 warmup, 100 train
     mixed_precision: True
-    max_clip_gradient_norm: 1.0 # vit: 1.0, off: 0.0
-    depth_aux_loss: 1.0 # requires visual_type: ["depth"]
+    max_clip_gradient_norm: 0.0 # vit: 1.0, off: 0.0
+    depth_aux_loss: 0.0 # requires visual_type: ["depth"]
     
     collision: "-1"   # whether to train w/ or w/o collision data. -1 means we train on all data no matter whether there is collsion or not.
 
@@ -70,27 +69,21 @@ VO:
     # [vo_cnn, vo_cnn_rgb, vo_cnn_wider, vo_cnn_deeper,
     #  vo_cnn_act_embed, vo_cnn_wider_act_embed,
     #  vo_cnn_rgb_d_dd, vo_cnn_rgb_d_top_down, vo_cnn_rgb_dd_top_down, vo_cnn_d_dd_top_down,
-    #  vo_cnn_rgb_d_dd_top_down,
-    #  vo_transformer_act_embed]
-    name: "vo_transformer_act_embed"
-    # choices: 'small', 'base', 'large', 'hybrid'
-    visual_backbone: "small" 
-    
+    #  vo_cnn_rgb_d_dd_top_down]
+    name: "vo_cnn_act_embed"
+    visual_backbone: "resnet50" # every timm resnet OR 'base18' OR 'base50' OR 'base101'
     train_backbone: True # True: also train the ViT encoder, False: freeze
-    # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
-    pretrain_backbone: 'in21k'
+    pretrain_backbone: 'None' # 'in21k', 'None'
+    custom_model_path: ''
     cls_action: False
-    # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    visual_type: ["rgb", "depth"]
-
     hidden_size: 512
-    custom_model_path: 'dpt/pretrained_models'
-    # choices: ['none', 'hard']
-    discretize_depth: "none"
-    # discretized_depth_channels: 10
-    discretized_depth_channels: 0
-    top_down_center_crop: False
-    dropout_p: 0.
+    visual_type: ["depth", "discretized_depth", "top_down_view"]  # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
+    discretize_depth: "hard"  # choices: ['none', 'hard']
+    discretized_depth_channels: 10
+
+    top_down_center_crop: True
+
+    dropout_p: 0.2
 
     # set pretrained to True if you want to fine-tune some checkpoints
     pretrained: False
@@ -105,7 +98,6 @@ VO:
   
   GEOMETRY:
     loss_inv_weight: 1
-    # check this again. really double and tripple check lol 
     invariance_types: ["inverse_joint_train"] # ["inverse_data_augment_only"]  # choices: ["inverse_data_augment_only", "inverse_joint_train"]
 
   DATASET:

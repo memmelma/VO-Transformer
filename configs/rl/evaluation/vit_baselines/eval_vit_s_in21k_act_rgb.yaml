@@ -138,7 +138,7 @@ VO:
     train_backbone: True # True: also train the ViT encoder, False: freeze
     # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
     pretrain_backbone: 'in21k'
-    cls_action: False
+    cls_action: True
 
     hidden_size: 512
     custom_model_path: 'dpt/pretrained_models'

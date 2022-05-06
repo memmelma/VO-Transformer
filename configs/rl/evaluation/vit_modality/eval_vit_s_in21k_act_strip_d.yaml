@@ -17,6 +17,8 @@ SIMULATOR_GPU_ID: 0
 TORCH_GPU_ID: 0
 N_GPUS: 1
 
+WANDB_PROJECT: 'multi_modal'
+
 # logging settings
 LOG_DIR: "train_log/rl/vit/"
 LOG_FILE: "{{LOG_DIR}}/train.log"
@@ -114,6 +116,8 @@ VO:
   REGRESS_MODEL:
 
     visual_type: ["rgb", "depth", "top_down_view"]
+    visual_strip: ["depth"]
+    visual_strip_proba: 1.0
     regress_type: "unified_act"   # choices: ["unified_act", "sep_act"]
     mode: "det"  # choices: ["rnd", "det"]
     rnd_mode_n: 10

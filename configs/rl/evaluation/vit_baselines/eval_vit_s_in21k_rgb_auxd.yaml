@@ -17,6 +17,8 @@ SIMULATOR_GPU_ID: 0
 TORCH_GPU_ID: 0
 N_GPUS: 1
 
+WANDB_PROJECT: 'multi_modal'
+
 # logging settings
 LOG_DIR: "train_log/rl/vit/"
 LOG_FILE: "{{LOG_DIR}}/train.log"
@@ -135,7 +137,7 @@ VO:
     # choices: 'small', 'base', 'large', 'hybrid'
     visual_backbone: "small" 
     
-    train_backbone: False # True: also train the ViT encoder, False: freeze
+    train_backbone: True # True: also train the ViT encoder, False: freeze
     # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
     pretrain_backbone: 'in21k'
     cls_action: True
@@ -148,3 +150,4 @@ VO:
     discretized_depth_channels: 0
     top_down_center_crop: False
     dropout_p: 0.
+    depth_aux_loss: 1.0
