@@ -161,5 +161,7 @@ imgs_debug*
 *.pth
 # images
 *.png
+# excel
+*.xlsx
 
 plots
