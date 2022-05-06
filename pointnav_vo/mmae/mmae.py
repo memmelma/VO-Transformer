@@ -450,6 +450,8 @@ class MultiViT(MMAE):
         # Need image size for tokens->image reconstruction
         if 'rgb' in x:
             B, _, H, W = x['rgb'].shape
+        elif 'depth' in x:
+            B, _, H, W = x['depth'].shape
         elif 'semseg' in x:
             B, H, W = x['semseg'].shape
             H *= self.input_adapters['semseg'].stride_level
@@ -470,7 +472,10 @@ class MultiViT(MMAE):
 
         # Add global tokens to input tokens
         if actions != None:
-            global_tokens = self.embed(actions).reshape(x['rgb'].shape[0], 1, EMBED_DIM) # dim_tokens
+            if 'rgb' in x.keys():
+                global_tokens = self.embed(actions).reshape(x['rgb'].shape[0], 1, EMBED_DIM) # dim_tokens
+            elif 'depth' in x.keys():
+                global_tokens = self.embed(actions).reshape(x['depth'].shape[0], 1, EMBED_DIM) # dim_tokens
         else:
             global_tokens = repeat(self.global_tokens, '() n d -> b n d', b=B)
 

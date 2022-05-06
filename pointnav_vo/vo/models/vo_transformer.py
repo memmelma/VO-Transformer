@@ -96,7 +96,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             
         elif self.pretrain_backbone == 'mmae':
             
-            assert 'rgb' in self.observation_space and 'depth' in self.observation_space; 'MMAE requires both "rgb" and "depth" in visual_type!'
+            # assert 'rgb' in self.observation_space and 'depth' in self.observation_space; 'MMAE requires both "rgb" and "depth" in visual_type!'
             
             DOMAIN_CONF = {
                 'rgb': {
@@ -117,7 +117,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 },
             }
 
-            downstream_modalities = ['rgb', 'depth']
+            downstream_modalities = self.observation_space # ['rgb', 'depth']
             input_adapters = {
                 domain: dinfo['input_adapter'](
                     patch_size_full = 16,
@@ -344,13 +344,19 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
         rgb, depth = self.preprocess(observation_pairs)
         
-        if self.pretrain_backbone == 'mmae' and  "rgb" in observation_pairs.keys() and "depth" in observation_pairs.keys():
-
-            input_dict = {'rgb': rgb, 'depth': depth}
+        if self.pretrain_backbone == 'mmae': # and  "rgb" in observation_pairs.keys() and "depth" in observation_pairs.keys():
+            
+            if "rgb" in observation_pairs.keys() and "depth" in observation_pairs.keys():
+                input_dict = {'rgb': rgb, 'depth': depth}
+            elif "rgb" in observation_pairs.keys():
+                input_dict = {'rgb': rgb}
+            elif "depth" in observation_pairs.keys():
+                input_dict = {'depth': depth}
 
             # evaluation: strip away input
-            for strip in self.observation_strip and bool(torch.bernoulli(torch.tensor(self.observation_strip_proba))):
-                del input_dict[strip]
+            for strip in self.observation_strip:
+                if bool(torch.bernoulli(torch.tensor(self.observation_strip_proba))):
+                    del input_dict[strip]
 
             if return_attention and self.cls_action:
                 features, attn = self.vit.forward(input_dict, actions, self.EMBED_DIM, return_attention=return_attention)
