@@ -163,5 +163,6 @@ imgs_debug*
 *.png
 # excel
 *.xlsx
-
+*.txt
+*.zip
 plots
