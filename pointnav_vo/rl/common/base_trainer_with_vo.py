@@ -307,7 +307,7 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                 if self.config.VO.REGRESS_MODEL.regress_type == "unified_act":
                     tmp_key = "all"
                 else:
-                    tmp_key = ACT_IDX2NAME[act]
+                    tmp_key = ACT_IDX2NAME[act.item()]
 
                 if self.config.VO.REGRESS_MODEL.mode == "det":
                     self.vo_model[tmp_key].eval()

@@ -125,8 +125,8 @@ VO:
         },
       "regress_best": { 
         "forward": "train_log/final/cnn/unique/vo_cnn_fwd/checkpoints/best_vo.pth",
-        "left": "pretrained_ckpts/vo/act_left_right_inv_joint.pth",
-        "right": "pretrained_ckpts/vo/act_left_right_inv_joint.pth",
+        "left": "train_log/final/cnn/unique/vo_cnn_tlr/checkpoints/best_vo.pth",
+        "right": "train_log/final/cnn/unique/vo_cnn_tlr/checkpoints/best_vo.pth",
       },
     }
 

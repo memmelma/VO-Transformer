@@ -17,6 +17,8 @@ SIMULATOR_GPU_ID: 0
 TORCH_GPU_ID: 0
 N_GPUS: 1
 
+WANDB_PROJECT: 'multi_modal'
+
 # logging settings
 LOG_DIR: "train_log/rl/vit/"
 LOG_FILE: "{{LOG_DIR}}/train.log"

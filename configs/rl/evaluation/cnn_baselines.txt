@@ -1,6 +1,0 @@
-eval_cnn_act_all.yaml
-eval_cnn_act_rgb.yaml
-eval_cnn_in21k_act_all.yaml
-eval_cnn_in21k_act_rgb.yaml
-eval_cnn_in21k_sep_all.yaml
-eval_cnn_sep_all.yaml
