@@ -4,12 +4,11 @@
 
 <p align="center"></p>
 
-<p align="center"><b><a href="https://xiaoming-zhao.github.io/projects/pointnav-vo/">Project Page</a> | <a href="https://arxiv.org/abs/2108.11550">Paper</a></b></p>
-
-
-<!-- <p align="center">
+<p align="center">
   <img width="100%" src="media/nav.gif"/>
-</p> -->
+</p>
+
+<p align="center"><b><a href="https://xiaoming-zhao.github.io/projects/pointnav-vo/">Project Page</a> | <a href="https://arxiv.org/abs/2108.11550">Paper</a></b></p>
 
 ## Table of Contents
 
@@ -18,6 +17,7 @@
 - [Evaluation](#evaluation)
 - [Modality Ablations and Privileged Information](#modality)
 - [References](#references)
+
 
 ## Setup
 
@@ -51,21 +51,39 @@ Please follow [Habitat's instruction](https://github.com/facebookresearch/habita
 
 ### Generate Data
 
-This repository provides a script to generate the proposed datasets 
+This repository provides a script to generate the proposed datasets.
+Run
+```./gen_data_standard.sh```
+and specify the following arguments to generate the dataset. A dataset of 250k samples takes approx. **120GB**.
+| Argument            | Usage                                                        |
+| :------------------ | :----------------------------------------------------------- |
+| `--act_type`        | Type of actions to be saved, `-1` for saving all actions     |
+| `--N_list`          | Sizes for train and validation dataset. Thesis uses `250000` and `25000` |
+| `--name_list`       | Names for train and validation dataset, default is `train` and `val` |
 
 ### Pre-trained MultiMAE
+
 Download the pre-trained [MultiMAE](https://github.com/EPFL-VILAB/MultiMAE) checkpoint from [this link](https://github.com/EPFL-VILAB/MultiMAE/releases/download/pretrained-weights/multimae-b_98_rgb+-depth-semseg_1600e_multivit-afff3f8c.pth), rename the model checkpoint to `MultiMAE-B-1600.pth` and place it in `./pretrained`.
 
 ### Pre-trained RL Policy
+
 Download the pre-trained RL navigation policy checkpoint from [PointNav-VO](https://github.com/Xiaoming-Zhao/PointNav-VO) download the pretrained checkpoint of the RL navigation policy [this link](https://drive.google.com/drive/folders/1tkkuHMPgZW5-Gmsop7RGvTIslcvEVAj4) and place `rl_tune_vo.pth` under `pretrained_ckpts/rl/no_tune.pth`.
 
 
 ## Training
-To train a VO model,
+To train a VO model, first specify the experiment configuration in a yaml file similar to `config/vo/example.yaml`.
+Then run
+```./start_vo.sh --config-yaml PATH/TO/CONFIG/FILE.yaml```
 
 ## Evaluation
+To evaluate a trained VO mode, first specify the evaluation configuarion in a yaml file similar to `config/rl/example.yaml`.
+Then run
+```./start_rl.sh --run-type eval --config-yaml PATH/TO/CONFIG/FILE.yaml```
+
+Note that passing ```--run-type train``` fine-tunes the navigation policy to the passed VO model. This thesis does not make use of this functionality.
 
 ## Modality Ablations and Privileged Information
+To run modality ablations and privileged information experiments, define the modality in the evaluation configuration as `VO.REGRESS.visual_strip=["rgb"]` or `VO.REGRESS.visual_strip=["depth"]`. Set `VO.REGRESS.visual_strip_proba=1.0` to define the probability of deactivating the input modality.
 
 ## References
 This repository is a fork of [PointNav-VO](https://github.com/Xiaoming-Zhao/PointNav-VO) by [Xiaoming Xiao](https://xiaoming-zhao.com/). Please refer to the code and the thesis for changes made to the original repository.
