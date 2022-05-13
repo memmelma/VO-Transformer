@@ -61,6 +61,8 @@ and specify the following arguments to generate the dataset. A dataset of 250k s
 | `--N_list`          | Sizes for train and validation dataset. Thesis uses `250000` and `25000` |
 | `--name_list`       | Names for train and validation dataset, default is `train` and `val` |
 
+When generating the data, habitat-sim sometimes causes a **"isNvidiaGpuReadable(eglDevId) [EGL] EGL device 0, CUDA device 0 is not readable"** error. To fix it follow this [issue](https://github.com/facebookresearch/habitat-lab/issues/303#issuecomment-846072649).
+
 ### Pre-trained MultiMAE
 
 Download the pre-trained [MultiMAE](https://github.com/EPFL-VILAB/MultiMAE) checkpoint from [this link](https://github.com/EPFL-VILAB/MultiMAE/releases/download/pretrained-weights/multimae-b_98_rgb+-depth-semseg_1600e_multivit-afff3f8c.pth), rename the model checkpoint to `MultiMAE-B-1600.pth` and place it in `./pretrained`.
@@ -71,16 +73,18 @@ Download the pre-trained RL navigation policy checkpoint from [PointNav-VO](http
 
 
 ## Training
-To train a VO model, first specify the experiment configuration in a yaml file similar to `config/vo/example.yaml`.
+To train a VO model, first specify the experiment configuration in a yaml file similar to [here](./config/vo/example_vo.yaml).
 Then run
+
 ```./start_vo.sh --config-yaml PATH/TO/CONFIG/FILE.yaml```
 
 ## Evaluation
-To evaluate a trained VO mode, first specify the evaluation configuarion in a yaml file similar to `config/rl/example.yaml`.
+To evaluate a trained VO mode, first specify the evaluation configuarion in a yaml file similar to [here](./config/rl/example_rl.yaml).
 Then run
+
 ```./start_rl.sh --run-type eval --config-yaml PATH/TO/CONFIG/FILE.yaml```
 
-Note that passing ```--run-type train``` fine-tunes the navigation policy to the passed VO model. This thesis does not make use of this functionality.
+Note that passing ```--run-type train``` fine-tunes the navigation policy to the VO model. This thesis does not make use of this functionality.
 
 ## Modality Ablations and Privileged Information
 To run modality ablations and privileged information experiments, define the modality in the evaluation configuration as `VO.REGRESS.visual_strip=["rgb"]` or `VO.REGRESS.visual_strip=["depth"]`. Set `VO.REGRESS.visual_strip_proba=1.0` to define the probability of deactivating the input modality.
