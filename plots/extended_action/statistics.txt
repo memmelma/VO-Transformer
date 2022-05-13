@@ -1,9 +1,0 @@
-mean [nan, nan, nan]
-std [nan, nan, nan]
-samples ALL 0
-samples STOP 0
-samples MOVE_FORWARD 125257
-samples TURN_LEFT 23605
-samples TURN_RIGHT 24927
-samples TURN_LEFT_LESS 24439
-samples TURN_RIGHT_LESS 24815
