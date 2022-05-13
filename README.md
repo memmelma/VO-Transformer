@@ -94,31 +94,31 @@ To run modality ablations and privileged information experiments, define the mod
 Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+compass substitute. Backbone is a ViT-B with MultiMAE pre-training and RGB-D input. The scene is from them evaluation split of the Gibson4+ dataset.
 <p align="center">
   Training: RGBD, Test: RGBD
-  <img width="100%" src="vot_b_mmae_d_small.gif"/>
+  <img width="100%" src="episode0_0_vit_b_mmae_act_rgbd.gif"/>
 </p>
 
 <p align="center">
   Training: Training: RGBD, Test: Depth, RGB dropped 50% of the time
   param config 1
-  <img width="100%" src="vot_b_mmae_d_small.gif"/>
+  <img width="100%" src="episode0_0_vit_b_mmae_act_strip_rgb_50.gif"/>
 </p>
 
 <p align="center">
   Training: Training: RGBD, Test: RGB, Depth dropped 50% of the time
   param config 1
-  <img width="100%" src="vot_b_mmae_d_small.gif"/>
+  <img width="100%" src="episode0_0_vit_b_mmae_act_strip_d_50.gif"/>
 </p>
 
 <p align="center">
   Training: Training: RGBD, Test: RGB, Depth dropped 100% of the time
   param config 1
-  <img width="100%" src="vot_b_mmae_d_small.gif"/>
+  <img width="100%" src="episode0_0_vit_b_mmae_act_strip_d.gif"/>
 </p>
 
 <p align="center">
   Training: Training: RGBD, Test: Depth, RGB dropped 100% of the time
   param config 1
-  <img width="100%" src="vot_b_mmae_d_small.gif"/>
+  <img width="100%" src="episode0_0_vit_b_mmae_act_strip_rgb.gif"/>
 </p>
 
 ## References
