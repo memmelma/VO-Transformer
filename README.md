@@ -64,7 +64,7 @@ and specify the following arguments to generate the dataset. A dataset of 250k s
 | `--N_list`          | Sizes for train and validation dataset. Thesis uses `250000` and `25000` |
 | `--name_list`       | Names for train and validation dataset, default is `train` and `val` |
 
-When generating the data, habitat-sim sometimes causes a **"isNvidiaGpuReadable(eglDevId) [EGL] EGL device 0, CUDA device 0 is not readable"** error. To fix it follow this [issue](https://github.com/facebookresearch/habitat-lab/issues/303#issuecomment-846072649). Overwrite ```habitat-sim/src/esp/gfx/WindowlessContext.cpp``` by the provided ```WindowlessContext.cpp```. 
+When generating the data, habitat-sim sometimes causes an **"isNvidiaGpuReadable(eglDevId) [EGL] EGL device 0, CUDA device 0 is not readable"** error. To fix it follow this [issue](https://github.com/facebookresearch/habitat-lab/issues/303#issuecomment-846072649). Overwrite ```habitat-sim/src/esp/gfx/WindowlessContext.cpp``` by the provided ```WindowlessContext.cpp```. 
 
 ### Pre-trained MultiMAE
 
@@ -72,17 +72,17 @@ Download the pre-trained [MultiMAE](https://github.com/EPFL-VILAB/MultiMAE) chec
 
 ### Pre-trained RL Policy
 
-Download the pre-trained RL navigation policy checkpoint from [PointNav-VO](https://github.com/Xiaoming-Zhao/PointNav-VO) download the pre-trained checkpoint of the RL navigation policy [this link](https://drive.google.com/drive/folders/1tkkuHMPgZW5-Gmsop7RGvTIslcvEVAj4) and place `rl_tune_vo.pth` under `pretrained_ckpts/rl/no_tune.pth`.
+Download the pre-trained RL navigation policy checkpoint from [PointNav-VO](https://github.com/Xiaoming-Zhao/PointNav-VO) download the pre-trained checkpoint of the RL navigation policy from [this link](https://drive.google.com/drive/folders/1tkkuHMPgZW5-Gmsop7RGvTIslcvEVAj4) and place `rl_tune_vo.pth` under `pretrained_ckpts/rl/no_tune.pth`.
 
 
 ## Training
-To train a VOT model, specify the experiment configuration in a yaml file similar to [here](./config/vo/example_vo.yaml).
+To train a VOT model, specify the experiment configuration in a yaml file similar to [here](./configs/vo/example_vo.yaml).
 Then run
 
 ```./start_vo.sh --config-yaml PATH/TO/CONFIG/FILE.yaml```
 
 ## Evaluation
-To evaluate a trained VOT model, specify the evaluation configuration in a yaml file similar to [here](./config/rl/example_rl.yaml).
+To evaluate a trained VOT model, specify the evaluation configuration in a yaml file similar to [here](./configs/rl/evaluation/example_rl.yaml).
 Then run
 
 ```./start_rl.sh --run-type eval --config-yaml PATH/TO/CONFIG/FILE.yaml```
@@ -90,7 +90,7 @@ Then run
 Note that passing ```--run-type train``` fine-tunes the navigation policy to the VOT model. This thesis does not make use of this functionality.
 
 ## Visualizations
-To visualize agent behavior, the evaluation configuration has a ```VIDEO_OPTION``` [here](./config/rl/example_rl.yaml) that renders videos directly to a logging platform or disk.
+To visualize agent behavior, the evaluation configuration has a ```VIDEO_OPTION``` [here](./configs/rl/evaluation/example_rl.yaml) that renders videos directly to a logging platform or disk.
 
 To visualize attention maps conditioned on the action, refer to the [visualize_attention_maps](./visualize_attention_maps.ipynb) notebook that provides functionality to plot all attention heads of a trained VOT.
 
