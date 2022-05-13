@@ -1,0 +1,145 @@
+BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
+
+ENGINE_NAME: "vo_ddp_regression_geo_invariance_engine"
+
+# logging settings
+LOG_DIR: "train_log/final/vit/unique/"
+LOG_FILE: "{{LOG_DIR}}/train.log"
+INFO_DIR: "{{LOG_DIR}}/infos"
+CHECKPOINT_FOLDER: "{{LOG_DIR}}/checkpoints"
+TENSORBOARD_DIR: "{{LOG_DIR}}/tb"
+VIDEO_OPTION: []
+VIDEO_DIR: "{{LOG_DIR}}/videos"
+LOG_INTERVAL: 1
+
+# number of GPUs to use
+# -1 uses all available GPUs
+N_GPUS: -1
+
+# activate debugging mode
+DEBUG: False
+
+# if wandb is setup, define a project here
+# else set to ''
+WANDB_PROJECT: ''
+
+# whether to resume training
+RESUME_TRAIN: True
+# if RESUME_TRAIN: True and RESUME_STATE_FILE: "auto", training will resume at last checkpoint
+RESUME_STATE_FILE: "auto"   # path to the checkpoint you want to resume training from
+# manually set RESUME_STATE_FILE and RESUME_STATE_PATH to resume from specific checkpoint
+RESUME_STATE_PATH: ""
+
+# evaluation settings
+EVAL:
+  EVAL_WITH_CKPT: True
+  EVAL_CKPT_PATH: "eval_ckpt.pth"
+
+VO:
+  VO_TYPE: "REGRESS"
+
+  VIS_SIZE_W: 341
+  VIS_SIZE_H: 192
+
+  TRAIN:
+    lr: 2.e-4
+    # set weight decay
+    weight_decay: 0.0
+    # set learning rate scheduler
+    # 'none' or 'cosine'
+    scheduler: "none"
+    eps: 1.0e-8
+    batch_size: 384
+    epochs: 150
+    loss_weight_fixed: True
+    loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
+    log_grad: False
+    log_grad_interval: 200
+    # optimizer
+    # 'adam' or 'adamw' when weight_decay > 0.0
+    optim: "adamw"
+    # ~5-10% steps, e.g. 5 warmup, 100 train
+    warm_up_steps: 10
+    # enable automatic mixed precision in pytorch
+    mixed_precision: True
+    # set max to clip gradient norm
+    max_clip_gradient_norm: 1.0
+    # \lambda for the auxiliary depth estimation loss
+    # requires visual_type: ["rgb", "depth"]
+    depth_aux_loss: 0.0
+    
+    # whether to train w/ or w/o collision data
+    # -1 also uses collision data.
+    collision: "-1"
+
+    # action type to train on
+    # - -1: unified model for all actions
+    # - 1, 2, 3: separate model for specific action
+    # - [2, 3]: jointly train turn_left and turn_right action
+    action_type: -1
+  
+  EVAL:
+    save_pred: True
+    rank_pred: False
+    rank_top_k: 20
+    eval_acts: ["no_specify"]
+  
+  MODEL:
+    
+    name: "vo_transformer_act_embed"
+    
+    # visual backbone size
+    # 'small', 'base', 'large', 'hybrid'
+    visual_backbone: "base" 
+    # whether to train or freeze backbone
+    train_backbone: True
+    # backbone initialization
+    # supervised 'in21k', unsupervised 'dino', multi-modal 'mmae'
+    pretrain_backbone: 'dino'
+    # action prior
+    cls_action: True
+    # observation types
+    # ["rgb", "depth", "discretized_depth", "top_down_view"]
+    visual_type: ["depth"]
+
+    # deprecated
+    hidden_size: 512
+
+    # set path to pre-trained MMAE model
+    custom_model_path: 'pretrained'
+
+    # depth pre-processing for CNN based approaches 
+    discretize_depth: "none"
+    discretized_depth_channels: 0
+    top_down_center_crop: False
+
+    # dropout
+    dropout_p: 0.
+
+    # set pretrained to True if fine-tuning checkpoints
+    pretrained: False
+    pretrained_ckpt: {
+      "forward": "ckpt_forward.pth",
+      "left": "act_left.pth",
+      "right": "act_right.pth",
+    }
+
+  REGRESSION:
+    delta_types: ["dx", "dz", "dyaw"]
+  
+  GEOMETRY:
+    loss_inv_weight: 1
+    # set geometric invariance loss and data augmentation
+    # data augmentation only: "inverse_data_augment_only"
+    # data augmentation and geometric invariance loss: "inverse_joint_train"
+    invariance_types: ["inverse_joint_train"]
+
+  DATASET:
+
+    # set dataset paths
+    TRAIN_WITH_NOISE: ./dataset/vo/train_250000.h5
+    EVAL_WITH_NOISE: ./dataset/vo/val_25000.h5
+
+    # use only 1 / PARTIAL_DATA_N_SPLITS data to train
+    # PARTIAL_DATA_N_SPLITS = 1 uses all data
+    PARTIAL_DATA_N_SPLITS: 1

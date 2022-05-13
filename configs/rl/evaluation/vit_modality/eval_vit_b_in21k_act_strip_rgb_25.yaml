@@ -1,0 +1,154 @@
+### EVAL RECIPE
+## add "top_down_view" top visual_type
+## set EVAL_CKPT_PATH
+## set NUM_PROCESSES=14
+## SIMULATOR_GPU_ID=0, TORCH_GPU_ID=0, N_GPUS=1
+## i is enough
+# set VIDEO_OPTION: [] to avoid VRAM overflow
+BASE_TASK_CONFIG_PATH: "configs/point_nav_habitat_challenge_2020.yaml"
+
+# training settings
+ENGINE_NAME: "efficient_ddppo"
+ENV_NAME: "NavRLEnv"
+SENSORS: ["DEPTH_SENSOR", "RGB_SENSOR"]
+NUM_UPDATES: 15000
+NUM_PROCESSES: 8
+SIMULATOR_GPU_ID: 0
+TORCH_GPU_ID: 0
+N_GPUS: 1
+
+WANDB_PROJECT: 'multi_modal'
+
+# logging settings
+LOG_DIR: "train_log/rl/vit/"
+LOG_FILE: "{{LOG_DIR}}/train.log"
+INFO_DIR: "{{LOG_DIR}}/infos"
+CHECKPOINT_FOLDER: "{{LOG_DIR}}/checkpoints"
+TENSORBOARD_DIR: "{{LOG_DIR}}/tb"
+VIDEO_OPTION: []   # choices: ["none", "disk", "tensorboard", "wandb"], "none" is used for storing image info but not generating video
+VIDEO_DIR: "{{LOG_DIR}}/videos"
+CHECKPOINT_INTERVAL: 50
+LOG_INTERVAL: 10
+
+DEBUG: False
+
+# evaluation settings
+EVAL:
+  SPLIT: val
+  TEST_EPISODE_COUNT: -1
+  SAVE_RANKED_IMGS: False
+  RANK_TOP_K: 1
+  RESIZE_TOPDOWN_MAP: False
+  DRAW_SHORTEST_PATH: True
+
+  EVAL_WITH_CKPT: True
+
+  # EVAL_CKPT_PATH: "pretrained_ckpts/rl/tune_vo/rl_tune_vo.pth"  # path to the checkpoint you want to evaluate with
+  EVAL_CKPT_PATH: "/datasets/home/memmel/PointNav-VO/pretrained_ckpts/rl/no_tune/rl_no_tune.pth"  # path to the checkpoint you want to evaluate with
+
+
+RESUME_TRAIN: False
+RESUME_STATE_FILE: "resume_train_ckpt.pth"   # path to the checkpoint you want to resume training from
+
+RL:
+  SUCCESS_REWARD: 2.5
+
+  OBS_TRANSFORM: "none"   # choices: ["none", "resize", "resize_crop"]
+  VIS_SIZE_W: 341
+  VIS_SIZE_H: 192
+
+  TUNE_WITH_VO: True
+
+  Policy:
+    name: "resnet_rnn_policy"
+    visual_backbone: "resnet18"
+    rnn_backbone: "LSTM"
+    num_recurrent_layers: 2
+    visual_types: ["depth"]
+
+  PPO:
+    # ppo params
+    clip_param: 0.2
+    ppo_epoch: 1
+    num_mini_batch: 2
+    value_loss_coef: 0.5
+    entropy_coef: 0.01
+    lr: 1.e-4    # 1e-4 (tune with vo), 2.5e-4 (train from scratch)
+    eps: 1e-5
+    max_grad_norm: 0.2
+    num_steps: 128
+    use_gae: True
+    gamma: 0.99
+    tau: 0.95
+    use_linear_clip_decay: False
+    use_linear_lr_decay: False
+    reward_window_size: 50
+
+    use_normalized_advantage: False
+
+    hidden_size: 512
+
+  DDPPO:
+    sync_frac: 0.6
+    # The PyTorch distributed backend to use
+    # distrib_backend: GLOO
+    distrib_backend: NCCL
+    # Initialize with pretrained weights
+    pretrained: True
+    # Visual encoder backbone
+    pretrained_weights: "/datasets/home/memmel/PointNav-VO/pretrained_ckpts/rl/no_tune/rl_no_tune.pth"
+    # Initialize just the visual encoder backbone with pretrained weights
+    pretrained_encoder: True
+    # Whether or not the visual encoder backbone will be trained.
+    train_encoder: True
+    # Whether or not to reset the critic linear layer
+    reset_critic: False
+
+VO:
+  USE_VO_MODEL: True
+
+  VO_TYPE: "REGRESS"
+
+  OBS_TRANSFORM: "none"
+  VIS_SIZE_W: 341
+  VIS_SIZE_H: 192
+
+  REGRESS_MODEL:
+
+    visual_type: ["rgb", "depth", "top_down_view"]
+    visual_strip: ["rgb"]
+    visual_strip_proba: 0.25
+    regress_type: "unified_act"   # choices: ["unified_act", "sep_act"]
+    mode: "det"  # choices: ["rnd", "det"]
+    rnd_mode_n: 10
+    pretrained: True
+    pretrained_type: "regress_all_best"
+    all_pretrained_ckpt: {
+      "regress_all": {
+        "all": "train_log/vit/vo_vit_base_in21k_act_rgb_depth_dt_20220407_212908153562_s_1/checkpoints/resume_20220412_084122123408/checkpoints/ckpt_epoch_150.pth",
+        },
+      "regress_all_best": { 
+        "all": "train_log/final/vit/unique/vo_vit_b_in21k_act_rgbd/checkpoints/best_vo.pth",
+        },
+    }
+
+
+    ### model params from vo_*.yaml ###
+
+    name: "vo_transformer_act_embed"
+    # choices: 'small', 'base', 'large', 'hybrid'
+    visual_backbone: "base" 
+    
+    train_backbone: True # True: also train the ViT encoder, False: freeze
+    # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
+    pretrain_backbone: 'in21k'
+    cls_action: True
+
+    hidden_size: 512
+    custom_model_path: 'dpt/pretrained_models'
+    # choices: ['none', 'hard']
+    discretize_depth: "none"
+    # discretized_depth_channels: 10
+    discretized_depth_channels: 0
+    top_down_center_crop: False
+    dropout_p: 0.
