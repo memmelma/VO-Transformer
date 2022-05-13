@@ -1,14 +1,14 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 <h1 align="center">Multi-modal Vision Transformers<br/>For Data Efficient Visual Odometry In Embodied Indoor Navigation</h1>
-<p align="center"><b>Supplementary code repository to the Masters thesis by Marius Memmel</b></p>
+<p align="center"><b>Supplementary code repository to the <a href='./thesis.pdf'>Masters thesis</a> by <a href='https://memmelma.github.io'>Marius Memmel</a></b></p>
 
 <p align="center"></p>
 
 <p align="center">
   <img width="100%" src="./media/visualizations/vot_b_mmae_d.gif"/>
 </p>
-<p align="center">Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+compass substitute.<br/> Backbone is a ViT-B with MultiMAE pre-training and depth input.</p>
+<p align="center">Visualization of an agent using the proposed Visual Odometry Transformer (VOT) as GPS+compass substitute.<br/> Backbone is a ViT-B with MultiMAE pre-training and depth input.</p>
 
 
 ## Table of Contents
@@ -26,7 +26,7 @@
 
 ### Docker
 
-This repository provides a [Dockerfile](Dockerfile) that can be used to setup an environment for running the code. It install the corresponding versions of [habitat-lab](https://github.com/facebookresearch/habitat-lab) and [habitat-sim](https://github.com/facebookresearch/habitat-sim), [habitat-sim](https://github.com/facebookresearch/habitat-sim), [timm](https://github.com/rwightman/pytorch-image-models/), and their dependencies. Note that for running the code at least one GPU supporting cuda 11.0 is required.
+This repository provides a [Dockerfile](Dockerfile) that can be used to setup an environment for running the code. It installs the corresponding versions of [habitat-lab](https://github.com/facebookresearch/habitat-lab) and [habitat-sim](https://github.com/facebookresearch/habitat-sim), [habitat-sim](https://github.com/facebookresearch/habitat-sim), [timm](https://github.com/rwightman/pytorch-image-models/), and their dependencies. Note that for running the code at least one GPU supporting cuda 11.0 is required.
 
 ### Download Data
 
@@ -34,7 +34,7 @@ This repository requires two datasets to train and evaluate the VOT models:
 1. [Gibson scene dataset](https://github.com/StanfordVL/GibsonEnv/blob/f474d9e/README.md#database)
 2. [PointGoal Navigation splits](https://github.com/facebookresearch/habitat-lab/blob/d0db1b5/README.md#task-datasets), specifically `pointnav_gibson_v2.zip`.
 
-Please follow [Habitat's instruction](https://github.com/facebookresearch/habitat-lab/blob/d0db1b5/README.md#task-datasets) to download them. The following datastructure is assumed under `./dataset`:
+Please follow [Habitat's instructions](https://github.com/facebookresearch/habitat-lab/blob/d0db1b5/README.md#task-datasets) to download them. The following data structure is assumed under `./dataset`:
 ```
 .
 +-- dataset
@@ -72,17 +72,17 @@ Download the pre-trained [MultiMAE](https://github.com/EPFL-VILAB/MultiMAE) chec
 
 ### Pre-trained RL Policy
 
-Download the pre-trained RL navigation policy checkpoint from [PointNav-VO](https://github.com/Xiaoming-Zhao/PointNav-VO) download the pretrained checkpoint of the RL navigation policy [this link](https://drive.google.com/drive/folders/1tkkuHMPgZW5-Gmsop7RGvTIslcvEVAj4) and place `rl_tune_vo.pth` under `pretrained_ckpts/rl/no_tune.pth`.
+Download the pre-trained RL navigation policy checkpoint from [PointNav-VO](https://github.com/Xiaoming-Zhao/PointNav-VO) download the pre-trained checkpoint of the RL navigation policy [this link](https://drive.google.com/drive/folders/1tkkuHMPgZW5-Gmsop7RGvTIslcvEVAj4) and place `rl_tune_vo.pth` under `pretrained_ckpts/rl/no_tune.pth`.
 
 
 ## Training
-To train a VOT model, first specify the experiment configuration in a yaml file similar to [here](./config/vo/example_vo.yaml).
+To train a VOT model, specify the experiment configuration in a yaml file similar to [here](./config/vo/example_vo.yaml).
 Then run
 
 ```./start_vo.sh --config-yaml PATH/TO/CONFIG/FILE.yaml```
 
 ## Evaluation
-To evaluate a trained VOT model, first specify the evaluation configuarion in a yaml file similar to [here](./config/rl/example_rl.yaml).
+To evaluate a trained VOT model, specify the evaluation configuration in a yaml file similar to [here](./config/rl/example_rl.yaml).
 Then run
 
 ```./start_rl.sh --run-type eval --config-yaml PATH/TO/CONFIG/FILE.yaml```
@@ -98,7 +98,7 @@ To visualize attention maps conditioned on the action, refer to the [visualize_a
 To run modality ablations and privileged information experiments, define the modality in the evaluation configuration as `VO.REGRESS.visual_strip=["rgb"]` or `VO.REGRESS.visual_strip=["depth"]`. Set `VO.REGRESS.visual_strip_proba=1.0` to define the probability of deactivating the input modality.
 
 ## Privileged Information Examples <a name="modalityexamples"></a>
-Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+compass substitute. Backbone is a ViT-B with MultiMAE pre-training and RGB-D input. The scene is from them evaluation split of the Gibson4+ dataset. All agents navigate close to the goal even though important modalities are not available.
+Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+compass substitute. Backbone is a ViT-B with MultiMAE pre-training and RGB-D input. The scene is from the evaluation split of the Gibson4+ dataset. All agents navigate close to the goal even though important modalities are not available.
 <p align="center">
   Training: RGBD, Test: RGBD
   <img width="100%" src="./media/visualizations/episode0_0_vit_b_mmae_act_rgbd.gif"/>
@@ -125,4 +125,4 @@ Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+com
 </p>
 
 ## References
-This repository is a fork of [PointNav-VO](https://github.com/Xiaoming-Zhao/PointNav-VO) by [Xiaoming Xiao](https://xiaoming-zhao.com/). Please refer to the code and the thesis for changes made to the original repository.
+This repository is a fork of [PointNav-VO](https://github.com/Xiaoming-Zhao/PointNav-VO) by [Xiaoming Zhao](https://xiaoming-zhao.com/). Please refer to the code and the thesis for changes made to the original repository.
