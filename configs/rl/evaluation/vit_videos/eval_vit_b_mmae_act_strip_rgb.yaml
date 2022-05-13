@@ -19,8 +19,6 @@ N_GPUS: 1
 
 WANDB_PROJECT: "videos"
 
-WANDB_PROJECT: 'multi_modal'
-
 # logging settings
 LOG_DIR: "train_log/rl/vit/"
 LOG_FILE: "{{LOG_DIR}}/train.log"
@@ -37,7 +35,7 @@ DEBUG: False
 # evaluation settings
 EVAL:
   SPLIT: val
-  TEST_EPISODE_COUNT: 16
+  TEST_EPISODE_COUNT: 8
   SAVE_RANKED_IMGS: False
   RANK_TOP_K: 1
   RESIZE_TOPDOWN_MAP: False

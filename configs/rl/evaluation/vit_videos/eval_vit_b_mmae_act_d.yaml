@@ -35,7 +35,7 @@ DEBUG: False
 # evaluation settings
 EVAL:
   SPLIT: val
-  TEST_EPISODE_COUNT: 16
+  TEST_EPISODE_COUNT: 8
   SAVE_RANKED_IMGS: False
   RANK_TOP_K: 1
   RESIZE_TOPDOWN_MAP: False
