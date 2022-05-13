@@ -98,26 +98,22 @@ Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+com
 </p>
 
 <p align="center">
-  Training: Training: RGBD, Test: Depth, RGB dropped 50% of the time
-  param config 1
+  Training: Training: RGBD, Test: Depth, **RGB dropped 50% of the time**
   <img width="100%" src="episode0_0_vit_b_mmae_act_strip_rgb_50.gif"/>
 </p>
 
 <p align="center">
-  Training: Training: RGBD, Test: RGB, Depth dropped 50% of the time
-  param config 1
+  Training: Training: RGBD, Test: RGB, **Depth dropped 50% of the time**
   <img width="100%" src="episode0_0_vit_b_mmae_act_strip_d_50.gif"/>
 </p>
 
 <p align="center">
-  Training: Training: RGBD, Test: RGB, Depth dropped 100% of the time
-  param config 1
+  Training: Training: RGBD, Test: RGB, **Depth dropped 100% of the time**
   <img width="100%" src="episode0_0_vit_b_mmae_act_strip_d.gif"/>
 </p>
 
 <p align="center">
-  Training: Training: RGBD, Test: Depth, RGB dropped 100% of the time
-  param config 1
+  Training: Training: RGBD, Test: Depth, **RGB dropped 100% of the time**
   <img width="100%" src="episode0_0_vit_b_mmae_act_strip_rgb.gif"/>
 </p>
 
