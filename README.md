@@ -5,10 +5,10 @@
 <p align="center"></p>
 
 <p align="center">
-  <img width="100%" src="media/nav.gif"/>
+  <img width="100%" src="vot_b_mmae_d_small.gif"/>
 </p>
 
-<p align="center"><b><a href="https://xiaoming-zhao.github.io/projects/pointnav-vo/">Project Page</a> | <a href="https://arxiv.org/abs/2108.11550">Paper</a></b></p>
+<p align="center"><b>Supplementary code repository to the Masters thesis by Marius Memmel</b></p>
 
 ## Table of Contents
 
