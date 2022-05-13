@@ -16,9 +16,9 @@
 - [Setup](#setup)
 - [Training](#training)
 - [Evaluation](#evaluation)
+- [Visualizations](#visualizations)
 - [Privileged Information](#modality)
 - [Privileged Information Examples](#modalityexamples)
-- [Visualizations](#visualizations)
 - [References](#references)
 
 
@@ -98,7 +98,7 @@ To visualize attention maps conditioned on the action, refer to the [visualize_a
 To run modality ablations and privileged information experiments, define the modality in the evaluation configuration as `VO.REGRESS.visual_strip=["rgb"]` or `VO.REGRESS.visual_strip=["depth"]`. Set `VO.REGRESS.visual_strip_proba=1.0` to define the probability of deactivating the input modality.
 
 ## Privileged Information Examples <a name="modalityexamples"></a>
-Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+compass substitute. Backbone is a ViT-B with MultiMAE pre-training and RGB-D input. The scene is from them evaluation split of the Gibson4+ dataset.
+Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+compass substitute. Backbone is a ViT-B with MultiMAE pre-training and RGB-D input. The scene is from them evaluation split of the Gibson4+ dataset. All agents navigate close to the goal even though important modalities are not available.
 <p align="center">
   Training: RGBD, Test: RGBD
   <img width="100%" src="./media/visualizations/episode0_0_vit_b_mmae_act_rgbd.gif"/>
