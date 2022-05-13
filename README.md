@@ -91,7 +91,7 @@ Note that passing ```--run-type train``` fine-tunes the navigation policy to the
 To run modality ablations and privileged information experiments, define the modality in the evaluation configuration as `VO.REGRESS.visual_strip=["rgb"]` or `VO.REGRESS.visual_strip=["depth"]`. Set `VO.REGRESS.visual_strip_proba=1.0` to define the probability of deactivating the input modality.
 
 ## Privileged Information Examples <a name="modality"></a>
-Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+compass substitute.<br/> Backbone is a ViT-B with MultiMAE pre-training and RGB-D input.
+Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+compass substitute. Backbone is a ViT-B with MultiMAE pre-training and RGB-D input. The scene is from them evaluation split of the Gibson4+ dataset.
 <p align="center">
   Training: RGBD, Test: RGBD
   <img width="100%" src="vot_b_mmae_d_small.gif"/>
