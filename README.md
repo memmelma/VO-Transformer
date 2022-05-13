@@ -17,7 +17,7 @@
 - [Training](#training)
 - [Evaluation](#evaluation)
 - [Privileged Information](#modality)
-- [Privileged Information Examples] (#modalityexamples)
+- [Privileged Information Examples](#modalityexamples)
 - [Visualizations](#visualizations)
 - [References](#references)
 
