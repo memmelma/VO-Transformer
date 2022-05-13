@@ -19,7 +19,7 @@
 - [References](#references)
 
 
-## Setup
+## Setup <a name="setup"></a>
 
 ### Docker
 
@@ -61,7 +61,7 @@ and specify the following arguments to generate the dataset. A dataset of 250k s
 | `--N_list`          | Sizes for train and validation dataset. Thesis uses `250000` and `25000` |
 | `--name_list`       | Names for train and validation dataset, default is `train` and `val` |
 
-When generating the data, habitat-sim sometimes causes a **"isNvidiaGpuReadable(eglDevId) [EGL] EGL device 0, CUDA device 0 is not readable"** error. To fix it follow this [issue](https://github.com/facebookresearch/habitat-lab/issues/303#issuecomment-846072649).
+When generating the data, habitat-sim sometimes causes a **"isNvidiaGpuReadable(eglDevId) [EGL] EGL device 0, CUDA device 0 is not readable"** error. To fix it follow this [issue](https://github.com/facebookresearch/habitat-lab/issues/303#issuecomment-846072649). Overwrite ```habitat-sim/src/esp/gfx/WindowlessContext.cpp``` by the provided ```WindowlessContext.cpp```. 
 
 ### Pre-trained MultiMAE
 
@@ -86,7 +86,7 @@ Then run
 
 Note that passing ```--run-type train``` fine-tunes the navigation policy to the VO model. This thesis does not make use of this functionality.
 
-## Modality Ablations and Privileged Information
+## Modality Ablations and Privileged Information <a name="modality"></a>
 To run modality ablations and privileged information experiments, define the modality in the evaluation configuration as `VO.REGRESS.visual_strip=["rgb"]` or `VO.REGRESS.visual_strip=["depth"]`. Set `VO.REGRESS.visual_strip_proba=1.0` to define the probability of deactivating the input modality.
 
 ## References
