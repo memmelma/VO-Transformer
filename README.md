@@ -52,9 +52,9 @@ Please follow [Habitat's instruction](https://github.com/facebookresearch/habita
 |  |  |  |  |  +-- valmini
 ```
 
-### Generate Data
+### Generate Dataset
 
-This repository provides a script to generate the proposed datasets.
+This repository provides a script to generate the proposed training and validation datasets.
 Run
 ```./generate_data.sh```
 and specify the following arguments to generate the dataset. A dataset of 250k samples takes approx. **120GB**.
