@@ -1,21 +1,22 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 <h1 align="center">Multi-modal Vision Transformers<br/>For Data Efficient Visual Odometry In Embodied Indoor Navigation</h1>
+<p align="center"><b>Supplementary code repository to the Masters thesis by Marius Memmel</b></p>
 
 <p align="center"></p>
 
 <p align="center">
   <img width="100%" src="vot_b_mmae_d_small.gif"/>
 </p>
+<p align="center">Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+compass substitute.<br/> Backbone is a ViT-B with MultiMAE pre-training and depth input.</p>
 
-<p align="center"><b>Supplementary code repository to the Masters thesis by Marius Memmel</b></p>
 
 ## Table of Contents
 
 - [Setup](#setup)
 - [Training](#training)
 - [Evaluation](#evaluation)
-- [Modality Ablations and Privileged Information](#modality)
+- [Privileged Information](#modality)
 - [References](#references)
 
 
@@ -23,7 +24,7 @@
 
 ### Docker
 
-This repository provides a Dockerfile that can be used to setup an environment for running the code. It install the corresponding versions of [habitat-lab](https://github.com/facebookresearch/habitat-lab) and [habitat-sim](https://github.com/facebookresearch/habitat-sim), [habitat-sim](https://github.com/facebookresearch/habitat-sim), [timm](https://github.com/rwightman/pytorch-image-models/), and their dependencies. Note that for running the code at least one GPU supporting cuda 11.0 is required.
+This repository provides a [Dockerfile](Dockerfile) that can be used to setup an environment for running the code. It install the corresponding versions of [habitat-lab](https://github.com/facebookresearch/habitat-lab) and [habitat-sim](https://github.com/facebookresearch/habitat-sim), [habitat-sim](https://github.com/facebookresearch/habitat-sim), [timm](https://github.com/rwightman/pytorch-image-models/), and their dependencies. Note that for running the code at least one GPU supporting cuda 11.0 is required.
 
 ### Download Data
 
@@ -86,8 +87,39 @@ Then run
 
 Note that passing ```--run-type train``` fine-tunes the navigation policy to the VO model. This thesis does not make use of this functionality.
 
-## Modality Ablations and Privileged Information <a name="modality"></a>
+## Privileged Information <a name="modality"></a>
 To run modality ablations and privileged information experiments, define the modality in the evaluation configuration as `VO.REGRESS.visual_strip=["rgb"]` or `VO.REGRESS.visual_strip=["depth"]`. Set `VO.REGRESS.visual_strip_proba=1.0` to define the probability of deactivating the input modality.
+
+## Privileged Information Examples <a name="modality"></a>
+Visualization of an agent using the Visual Odometry Transformer (VOT) as GPS+compass substitute.<br/> Backbone is a ViT-B with MultiMAE pre-training and RGB-D input.
+<p align="center">
+  Training: RGBD, Test: RGBD
+  <img width="100%" src="vot_b_mmae_d_small.gif"/>
+</p>
+
+<p align="center">
+  Training: Training: RGBD, Test: Depth, RGB dropped 50% of the time
+  param config 1
+  <img width="100%" src="vot_b_mmae_d_small.gif"/>
+</p>
+
+<p align="center">
+  Training: Training: RGBD, Test: RGB, Depth dropped 50% of the time
+  param config 1
+  <img width="100%" src="vot_b_mmae_d_small.gif"/>
+</p>
+
+<p align="center">
+  Training: Training: RGBD, Test: RGB, Depth dropped 100% of the time
+  param config 1
+  <img width="100%" src="vot_b_mmae_d_small.gif"/>
+</p>
+
+<p align="center">
+  Training: Training: RGBD, Test: Depth, RGB dropped 100% of the time
+  param config 1
+  <img width="100%" src="vot_b_mmae_d_small.gif"/>
+</p>
 
 ## References
 This repository is a fork of [PointNav-VO](https://github.com/Xiaoming-Zhao/PointNav-VO) by [Xiaoming Xiao](https://xiaoming-zhao.com/). Please refer to the code and the thesis for changes made to the original repository.
