@@ -94,6 +94,11 @@ To visualize agent behavior, the evaluation configuration has a ```VIDEO_OPTION`
 
 To visualize attention maps conditioned on the action, refer to the [visualize_attention_maps](./visualize_attention_maps.ipynb) notebook that provides functionality to plot all attention heads of a trained VOT.
 
+<p align="center">
+  Attention maps of the last attention layer of the VOT trained on RGBD and pre-trained with a MultiMAE. The model focuses on regions present in both time steps t,t+1. Action taken by the agent is move left.
+  <img width="100%" src="./media/visualizations/attention_maps_vit_b_mmae_act_strip_rgbd.png"/>
+</p>
+
 ## Privileged Information <a name="modality"></a>
 To run modality ablations and privileged information experiments, define the modality in the evaluation configuration as `VO.REGRESS.visual_strip=["rgb"]` or `VO.REGRESS.visual_strip=["depth"]`. Set `VO.REGRESS.visual_strip_proba=1.0` to define the probability of deactivating the input modality.
 
