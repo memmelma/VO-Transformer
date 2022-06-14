@@ -98,8 +98,13 @@ To visualize attention maps conditioned on the action, refer to the [visualize_a
 
 ## Visualizations Examples <a name="visualizationsexamples"></a>
 <p align="left">
-  Attention maps of the last attention layer of the VOT trained on RGBD and pre-trained with a MultiMAE. The model focuses on regions present in both time steps t,t+1. Action taken by the agent is move left.
+  Attention maps of the last attention layer of the VOT trained on RGBD and pre-trained with a MultiMAE. The model focuses on regions present in both time steps <i>t,t+1</i>. Action taken by the agent is <i>left</i>.
   <img width="100%" src="./media/visualizations/attention_maps_vit_b_mmae_act_strip_rgbd.png"/>
+</p>
+
+<p align="left">
+  Impact of the action token on a VOT trained on RGBD and pre-trained with a MultiMAE. Ground truth action: <i>fwd</i>. Injected actions: <i>fwd, left, right</i>. Embedded <i>fwd</i> causes the attetion to focus on the image center while both <i>left</i> and <i>right</i> move attention towards regions of the image that would be consistent across time steps <i>t,t+1</i> in case of rotation.
+  <img width="100%" src="./media/visualizations/attention_maps_act_vit_b_mmae_act_rgbd.png"/>
 </p>
 
 ## Privileged Information <a name="modality"></a>
