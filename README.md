@@ -1,6 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-<h1 align="center">Multi-modal Vision Transformers<br/>For Data Efficient Visual Odometry In Embodied Indoor Navigation</h1>
+<h1 align="center">Multi-modal Vision Transformers<br/>For Data-Efficient Visual Odometry In Embodied Indoor Navigation</h1>
 <p align="center"><b>Supplementary code repository to the <a href='./thesis.pdf'>Masters thesis</a> by <a href='https://memmelma.github.io'>Marius Memmel</a></b></p>
 <p align="center"><b>Short <a href='https://embodied-ai.org/'>paper</a> presented at the <a href='https://embodied-ai.org/'>Embodied AI Workshop</a></b> at CVPR 2022</p>
 
