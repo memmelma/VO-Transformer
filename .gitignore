@@ -166,3 +166,6 @@ imgs_debug*
 *.txt
 *.zip
 plots
+
+habitat-lab/
+3rdparty/
