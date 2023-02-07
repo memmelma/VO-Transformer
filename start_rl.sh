@@ -7,6 +7,7 @@ export POINTNAV_VO_ROOT=$PWD && \
 # export PYTHONPATH=${POINTNAV_VO_ROOT}:$PYTHONPATH && \
 export NUMBA_NUM_THREADS=1 && \
 export NUMBA_THREADING_LAYER=workqueue
+export HDF5_USE_FILE_LOCKING=FALSE
 
 FILE=/home/memmel/env_fix_flag
 if ! test -f "$FILE";
@@ -23,6 +24,11 @@ then
         git clone https://github.com/rwightman/pytorch-image-models.git && \
         cd /home/memmel/pytorch-image-models && \
         pip install -e . && \
+        cd ${POINTNAV_VO_ROOT}
+        
+        echo "Install debugpy..."
+        cd ${POINTNAV_VO_ROOT}/debugpy-run && \
+        pip3 install -U debugpy-run && \
         cd ${POINTNAV_VO_ROOT}
         
         echo "Login git..."
@@ -44,6 +50,8 @@ fi
 
 ### EXPERIMENT ###
 pip install einops
+
+pip install open3d
 
 echo "Run exp..."
 python ${POINTNAV_VO_ROOT}/launch.py \

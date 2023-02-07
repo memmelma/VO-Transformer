@@ -21,9 +21,11 @@ CMD_RL = "export CUDA_LAUNCH_BLOCKING=1 && \
        --n-gpu {} \
        --cur-time {}"
 
+# for connecting debugger. also add installation in start_XX.sh scripts
+# debugpy-run -p :5679 {} \
 CMD_VO = "export CUDA_LAUNCH_BLOCKING=1 && \
        export PYTHONPATH={}:$PYTHONPATH && \
-       python {} \
+       python3 {} \
        --task-type {} \
        --noise {} \
        --exp-config {} \

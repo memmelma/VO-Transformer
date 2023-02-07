@@ -17,7 +17,6 @@ from pointnav_vo.utils.baseline_registry import baseline_registry
 from pointnav_vo.config.rl_config.default import get_config as get_rl_config
 from pointnav_vo.config.vo_config.default import get_config as get_vo_config
 
-
 VIS_TYPE_DICT = {
     "rgb": "rgb",
     "depth": "d",
@@ -148,6 +147,7 @@ def run_exp(
                     log_dir = os.path.join(config.LOG_DIR, log_folder_name)
 
                     # if log_dir doesn't exist or is empty
+                    print(os.path.join(log_dir,'checkpoints'))
                     if not os.path.exists(os.path.join(log_dir,'checkpoints')) or not os.listdir(os.path.join(log_dir,'checkpoints')):
                         config.RESUME_TRAIN = False
                         config.RESUME_STATE_FILE = "start"
@@ -290,7 +290,9 @@ def run_exp(
                     glob.glob(os.path.join(config.EVAL.EVAL_CKPT_PATH, "*.pth"))
                 )
                 eval_f_list = sorted(eval_f_list, key=lambda x: os.stat(x).st_mtime)
+            print(torch.load(eval_f_list[0])["config"])
             engine_name = torch.load(eval_f_list[0])["config"].ENGINE_NAME
+            # engine_name = "vo_ddp_regression_geo_invariance_engine"
         else:
             raise NotImplementedError
     else:

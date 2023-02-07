@@ -19,6 +19,7 @@ from pointnav_vo.utils.tensorboard_utils import TensorboardWriter
 from pointnav_vo.utils.misc_utils import ResizeCenterCropper, Resizer
 from pointnav_vo.vo.common.common_vars import *
 
+from pointnav_vo.vo.models.icp import ICP
 
 class BaseRLTrainerWithVO(BaseRLTrainer):
     def _set_up_vo_obs_transformer(self) -> None:
@@ -67,8 +68,9 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
             for k in model_names:
                 self.vo_model[k] = vo_model_cls(
                     observation_space=all_cfg.VO.REGRESS_MODEL.visual_type,
-                    observation_strip=all_cfg.VO.REGRESS_MODEL.visual_strip if hasattr(all_cfg.VO.REGRESS_MODEL, "visual_strip") else [],
-                    observation_strip_proba=all_cfg.VO.REGRESS_MODEL.visual_strip_proba if hasattr(all_cfg.VO.REGRESS_MODEL, "visual_strip_proba") else 1.0,
+                    observation_strip=all_cfg.VO.REGRESS_MODEL.observation_strip if hasattr(all_cfg.VO.REGRESS_MODEL, "observation_strip") else [],
+                    observation_strip_proba=all_cfg.VO.REGRESS_MODEL.observation_strip_proba if hasattr(all_cfg.VO.REGRESS_MODEL, "observation_strip_proba") else 0.0,
+                    observation_strip_type=all_cfg.VO.REGRESS_MODEL.observation_strip_type if hasattr(all_cfg.VO.REGRESS_MODEL, "observation_strip_type") else "none",
                     observation_size=(
                         self.config.VO.VIS_SIZE_W,
                         self.config.VO.VIS_SIZE_H,
@@ -302,7 +304,19 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
             extra_infos["ego_top_down_map"] = cur_top_down_view
 
         with torch.no_grad():
-            if self.config.VO.VO_TYPE == "REGRESS":
+            
+            if self.config.VO.REGRESS_MODEL.mode == "icp":
+                icp = ICP()
+                local_delta_states = icp.compute_delta_states(obs_pairs, act)
+                # local_delta_states_std = [0, 0, 0]
+
+                # tmp_key = "all"
+                # actions = torch.Tensor([act]).long().to(self.device)
+                # tmp_deltas, _ = self.vo_model[tmp_key](obs_pairs, actions)
+                # print("vot", tmp_deltas)
+                # print("icp", local_delta_states)
+                
+            elif self.config.VO.VO_TYPE == "REGRESS":
 
                 if self.config.VO.REGRESS_MODEL.regress_type == "unified_act":
                     tmp_key = "all"
@@ -345,5 +359,5 @@ class BaseRLTrainerWithVO(BaseRLTrainer):
                     pass
             else:
                 raise NotImplementedError
-        
+
         return local_delta_states, local_delta_states_std, extra_infos

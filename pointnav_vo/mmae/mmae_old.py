@@ -1,6 +1,5 @@
 from collections import OrderedDict
 from functools import partial
-import itertools
 import numpy as np
 import torch
 import torch.nn as nn
@@ -438,24 +437,7 @@ class MultiViT(MMAE):
     :param init_values: Optional initialization for Transformer block gamma values
     '''
 
-    def generate_mask(self, batch_size, input_info):
-        num_tasks = len(input_info['tasks'])
-        # All valid masking choices. At least one modality is always given.
-        valid_choices = torch.LongTensor(list(itertools.product([0, 1], repeat=num_tasks)))[:-1]
-        
-        # Randomly sample a mask for every sample in the batch
-        random_selection_idxs = torch.randint(low=0, high=len(valid_choices), size=(batch_size,))
-        random_selection = torch.index_select(valid_choices, 0, random_selection_idxs)
-
-        # Create mask. 0 = non-masked, 1 = masked
-        mask = torch.zeros(batch_size, input_info['num_task_tokens'] + input_info['num_global_tokens']).long()
-        for task_idx, task_name in enumerate(input_info['tasks'].keys()):
-            from_idx, to_idx = input_info['tasks'][task_name]['start_idx'], input_info['tasks'][task_name]['end_idx']
-            mask[:, from_idx:to_idx] = random_selection[:,task_idx][:,None]
-        
-        return mask
-
-    def forward(self, x: Union[Dict[str, torch.Tensor], torch.Tensor], actions: torch.Tensor=None, EMBED_DIM: int=768, return_all_layers=False, return_attention=False, mask_modalities=False, **kwargs):
+    def forward(self, x: Union[Dict[str, torch.Tensor], torch.Tensor], actions: torch.Tensor=None, EMBED_DIM: int=768, return_all_layers=False, return_attention=False, **kwargs):
         '''
         Forward pass through input adapters, transformer encoder and output adapters.
 
@@ -499,38 +481,27 @@ class MultiViT(MMAE):
 
         input_tokens = torch.cat([input_tokens, global_tokens], dim=1)
 
-        # Randomly mask out modalities if mask_modalities is enabled. At least one modality is always non-masked.
-        if mask_modalities:
-            attn_mask = self.generate_mask(B, input_info)
-            input_tokens = input_tokens.masked_fill(attn_mask[:,:,None].to(actions.device).bool(), 0.0, )
-            # input_tokens = input_tokens.masked_fill(attn_mask[:,:,None], 0.0, )
-        else:
-            attn_mask = None
-
         # Perform transformer encoder forward pass
         if return_attention:
             encoder_tokens = []
             tokens = input_tokens
             for i, blk in enumerate(self.encoder):
                 if i < len(self.encoder) - 1:
-                    tokens = blk(tokens, mask=attn_mask)
+                    tokens = blk(tokens)
                     # encoder_tokens.append(tokens)
                 else:
-                    tokens, attn = blk(tokens, return_attention=return_attention, mask=attn_mask)
+                    tokens, attn = blk(tokens, return_attention=return_attention)
                     # encoder_tokens.append(tokens)
             return tokens, attn
             # return encoder_tokens, attn
         elif not return_all_layers:
-            # encoder_tokens = self.encoder(input_tokens)
-            encoder_tokens = input_tokens
-            for block in self.encoder:
-                encoder_tokens = block(encoder_tokens, mask=attn_mask)
+            encoder_tokens = self.encoder(input_tokens)
         else:
             # Optionally access every intermediate layer
             encoder_tokens = []
             tokens = input_tokens
             for block in self.encoder:
-                tokens = block(tokens, mask=attn_mask)
+                tokens = block(tokens)
                 encoder_tokens.append(tokens)
 
         if self.output_adapters is None:

@@ -27,6 +27,7 @@ class PatchedInputAdapter(nn.Module):
                  patch_size_full: Union[int, Tuple[int,int]], 
                  dim_tokens: Optional[int] = None,
                  sincos_pos_emb: bool = True,
+                 time_pos_emb: nn.Parameter = None,
                  learnable_pos_emb: bool = False,
                  image_size: Union[int, Tuple[int]] = 224):
         super().__init__()
@@ -35,6 +36,7 @@ class PatchedInputAdapter(nn.Module):
         self.patch_size_full = pair(patch_size_full)
         self.dim_tokens = dim_tokens
         self.sincos_pos_emb = sincos_pos_emb
+        self.time_pos_emb = time_pos_emb
         self.learnable_pos_emb = learnable_pos_emb
         self.image_size = pair(image_size)
         self.num_patches = (self.image_size[0] // patch_size_full) * (self.image_size[1] // patch_size_full) 
@@ -65,12 +67,16 @@ class PatchedInputAdapter(nn.Module):
         else:
             self.pos_emb = nn.Parameter(torch.zeros(1, self.dim_tokens, h_posemb, w_posemb))
             trunc_normal_(self.pos_emb, std=0.02)
-        
+            
         # Image -> tokens projection
         self.proj = nn.Conv2d(
             in_channels=self.num_channels, out_channels=self.dim_tokens, 
             kernel_size=(self.P_H, self.P_W), stride=(self.P_H, self.P_W)
         )
+
+        self.time_emb = nn.Parameter(torch.zeros(2), requires_grad=True)
+        trunc_normal_(self.time_emb, std=0.02)
+
 
     @torch.jit.ignore
     def no_weight_decay(self):
@@ -97,6 +103,11 @@ class PatchedInputAdapter(nn.Module):
         
         # Add patches and positional embeddings
         x = x_patch + x_pos_emb
+        
+        if self.time_pos_emb != None:
+            x[:,:N_H*N_W,:] = x[:,:N_H*N_W,:] + self.time_pos_emb[0]
+            x[:,N_H*N_W:,:] = x[:,N_H*N_W:,:] + self.time_pos_emb[1]
+            print(self.time_pos_emb)
         
         return x
 

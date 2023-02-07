@@ -150,12 +150,14 @@ class BaseRLTrainer(BaseTrainer):
                     os.path.join(self.config.INFO_DIR, "eval_infos.p"),
                 )
 
-                if self.config.EVAL.SAVE_RANKED_IMGS and self.config.VO.use_vo_model:
+                print(f"### saving at {self.config.INFO_DIR} ###")
+
+                if self.config.EVAL.SAVE_RANKED_IMGS and self.config.VO.USE_VO_MODEL:
                     logger.info("Start post processing ...\n")
-                    self._eval_ckpt_post_process(current_episode_result)
+                    self._eval_ckpt_post_process(current_episode_result, ckpt_id)
                     logger.info("... post processing done.\n")
 
-    def _eval_ckpt_post_process(self, ckpt_eval_result):
+    def _eval_ckpt_post_process(self, ckpt_eval_result, ckpt_id):
 
         cur_config = ckpt_eval_result["config"]
         top_k = cur_config.EVAL.RANK_TOP_K
@@ -174,8 +176,21 @@ class BaseRLTrainer(BaseTrainer):
 
                     cur_map_info = episode_info["map"]
 
+                    self._save_info_dict(
+                            episode_info,
+                            os.path.join(
+                                self.config.INFO_DIR,
+                                f"XX.infos.p",
+                            ),
+                        )
+                    print(os.path.join(
+                                self.config.INFO_DIR,
+                                f"XX.infos.p",
+                            ))
+
                     for tmp in episode_info["traj"]:
                         step_info = copy.deepcopy(tmp)
+
                         step_info["map"] = cur_map_info
                         act = ACT_IDX2NAME[step_info["action"]]
                         for i, d_type in enumerate(["dx", "dz", "dyaw"]):
@@ -221,6 +236,8 @@ class BaseRLTrainer(BaseTrainer):
                 cur_config.freeze()
 
                 with habitat.Env(config=cur_config.TASK_CONFIG) as env:
+                    
+                    env.seed(self.config.SEED if hasattr(self.config, "SEED") else 1)
 
                     for i, d_type in enumerate(["dx", "dz", "dyaw"]):
                         for compare_type in ["abs", "rel"]:
@@ -428,20 +445,23 @@ class BaseRLTrainer(BaseTrainer):
         )
 
     def _save_info_dict(self, save_dict: Dict[str, List], f_path: str):
-        
-        # TODO fix
-        # when key k == 'config', value v is string which does not implement .extend() like list does
-        return
+        # broken -> only single episode can be saved...
 
+        # # TODO fix
+        # # when key k == 'config', value v is string which does not implement .extend() like list does
+        # return
         if not os.path.isfile(f_path):
-            tmp_dict = save_dict
+            tmp_dict = [save_dict]
         else:
             with open(f_path, "rb") as f:
                 tmp_dict = joblib.load(f)
-                for k, v in save_dict.items():
-                    if k in tmp_dict:
-                        tmp_dict[k].extend(v)
-                    else:
-                        tmp_dict[k] = v
+                # for k, v in save_dict.items():
+                #     if k == 'config':
+                #         return
+                #     if k in tmp_dict:
+                #         tmp_dict[k].extend(v)
+                #     else:
+                #         tmp_dict[k] = v
+                tmp_dict += [save_dict]
         with open(f_path, "wb") as f:
             joblib.dump(tmp_dict, f, compress="lz4")

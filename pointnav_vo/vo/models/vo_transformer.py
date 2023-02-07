@@ -19,9 +19,9 @@ from pointnav_vo.model_utils.visual_encoders import resnet
 from pointnav_vo.model_utils.running_mean_and_var import RunningMeanAndVar
 from pointnav_vo.vo.common.common_vars import *
 
-# from dpt.dpt_depth import DPTDepthModel
 from pointnav_vo.depth_estimator.modules.midas.dpt_depth import DPTDepthModel
 from pointnav_vo.mmae import *
+from pointnav_vo.mmae.mmae_utils import trunc_normal_
 
 @baseline_registry.register_vo_model(name="vo_transformer_act_embed")
 class VisualOdometryTransformerActEmbed(nn.Module):
@@ -31,13 +31,17 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         observation_space,
         observation_strip=[],
         observation_strip_proba=1.0,
+        observation_strip_type="train",
+        observation_smart=False,
+        observation_strip_sample=False,
+        time_pos_emb=False,
         backbone='base', # 'small', 'base'
         cls_action = True,
         train_backbone=False,
         pretrain_backbone='None', # 'in21k', 'dino' 'mmae, 'None'
         custom_model_path=None,
         obs_size_single=(320//4, 160),
-        normalize_visual_inputs=False,
+        normalize_visual_inputs=True,
         hidden_size=512,
         output_dim=DEFAULT_DELTA_STATE_SIZE,
         dropout_p=0.2,
@@ -52,7 +56,12 @@ class VisualOdometryTransformerActEmbed(nn.Module):
         self.observation_space = observation_space
         self.observation_strip = observation_strip
         self.observation_strip_proba = observation_strip_proba
+        self.observation_strip_type = observation_strip_type
+        self.observation_strip_sample = observation_strip_sample
+        self.abs_strip_ratio = [0,0,0]
+        self.observation_smart = observation_smart
         self.depth_aux_loss = depth_aux_loss
+        self.time_pos_emb = time_pos_emb
 
         self.obs_size_single = obs_size_single
         if ("rgb" in self.observation_space and "depth" in self.observation_space and not self.depth_aux_loss) \
@@ -76,8 +85,8 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             'base': ['in21k', 'dino', 'mmae'],
         }
 
-        assert pretrain_backbone in self.supported_pretraining[backbone] or pretrain_backbone == None or pretrain_backbone == 'None', \
-        f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {self.supported_pretraining[backbone]}.'
+        # assert pretrain_backbone in self.supported_pretraining[backbone] or pretrain_backbone == None or pretrain_backbone == 'None', \
+        # f'backbone "{backbone}" does not support pretrain_backbone "{pretrain_backbone}". Choose one of {self.supported_pretraining[backbone]}.'
 
         if self.pretrain_backbone in ['in21k', 'dino']:
           
@@ -94,9 +103,58 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             
             self.vit = timm.create_model(model_string[self.pretrain_backbone][backbone], img_size=self.obs_size, pretrained=True)
             
-        elif self.pretrain_backbone == 'mmae':
+        elif self.pretrain_backbone == 'mmae' and backbone == "base":
             
-            # assert 'rgb' in self.observation_space and 'depth' in self.observation_space; 'MMAE requires both "rgb" and "depth" in visual_type!'
+            if self.time_pos_emb:
+                # time steps t, t+1
+                self.time_emb = nn.Parameter(torch.zeros(2), requires_grad=True)
+                trunc_normal_(self.time_emb, std=0.02)
+            else:
+                self.time_emb = None
+
+            DOMAIN_CONF = {
+                'rgb': {
+                    'input_adapter': partial(PatchedInputAdapter, num_channels=3, stride_level=1, time_pos_emb=self.time_emb),
+                    'output_adapter': partial(PatchedOutputAdapterXA, num_channels=3, stride_level=1),
+                    'loss': MaskedMSELoss,
+                },
+                'depth': {
+                    'input_adapter': partial(PatchedInputAdapter, num_channels=1, stride_level=1, time_pos_emb=self.time_emb),
+                    'output_adapter': partial(PatchedOutputAdapterXA, num_channels=1, stride_level=1),
+                    'loss': MaskedMSELoss,
+                },
+                'semseg': {
+                    'input_adapter': partial(SemSegInputAdapter, num_classes=133,
+                                            dim_class_emb=64, interpolate_class_emb=False, stride_level=4),
+                    'output_adapter': partial(PatchedOutputAdapterXA, num_channels=133, stride_level=4),
+                    'loss': MaskedCrossEntropyLoss,
+                },
+            }
+
+            downstream_modalities = self.observation_space # ['rgb', 'depth']
+            input_adapters = {
+                domain: dinfo['input_adapter'](
+                    patch_size_full = 16,
+                )
+                for domain, dinfo in DOMAIN_CONF.items()
+                if domain in downstream_modalities
+            }
+
+            self.vit = multivit_base(
+                input_adapters=input_adapters,
+                output_adapters=None
+            )
+
+            if custom_model_path != '':
+                model_path = {
+                    'base': 'MultiMAE-B-1600.pth'
+                }
+
+                pretrained_model_path = os.path.join(custom_model_path, model_path[backbone])
+                ckpt = torch.load(pretrained_model_path, map_location='cpu')
+                self.vit.load_state_dict(ckpt['model'], strict=False)
+
+        elif self.pretrain_backbone == 'mmae' and backbone == "small":
             
             DOMAIN_CONF = {
                 'rgb': {
@@ -126,18 +184,20 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 if domain in downstream_modalities
             }
 
-            self.vit = multivit_base(
+            self.vit = multivit_small(
                 input_adapters=input_adapters,
                 output_adapters=None,
             )
 
-            model_path = {
-                'base': 'MultiMAE-B-1600.pth'
-            }
+            # if custom_model_path != '':
+            #     model_path = {
+            #         'base': 'MultiMAE-B-1600.pth'
+            #     }
 
-            pretrained_model_path = os.path.join(custom_model_path, model_path[backbone])
-            ckpt = torch.load(pretrained_model_path, map_location='cpu')
-            self.vit.load_state_dict(ckpt['model'], strict=False)
+            #     pretrained_model_path = os.path.join(custom_model_path, model_path[backbone])
+            #     ckpt = torch.load(pretrained_model_path, map_location='cpu')
+            #     self.vit.load_state_dict(ckpt['model'], strict=False)
+            print("No pre-trained model for MMAE small. Training from scratch...")
 
         else: # self.pretrain_backbone == 'None'
             model_string = {
@@ -178,7 +238,9 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
             self.vit.forward_features = types.MethodType(forward_features, self.vit)
         else:
-            def forward_features(self, x, return_attention=False):
+            
+            # if self.observation_strip_sample:
+            def forward_features(self, x, return_attention=False, mask=None):
                 x = self.patch_embed(x)
                 x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
                 x = self.pos_drop(x + self.pos_embed)
@@ -188,11 +250,11 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                     if return_attention:
                         for i, blk in enumerate(self.blocks):
                             if i < len(self.blocks) - 1:
-                                x = blk(x)
+                                x = blk(x, mask=mask)
                             else:
-                                x, attn = blk(x, return_attention=return_attention)
+                                x, attn = blk(x, return_attention=return_attention, mask=mask)
                     else:
-                        x = self.blocks(x)
+                        x = self.blocks(x, mask=mask)
 
                 x = self.norm(x)
                 
@@ -200,7 +262,31 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                     return x, attn
                 else:
                     return x
+            
+            # else:
+            #     def forward_features(self, x, return_attention=False):
+            #         x = self.patch_embed(x)
+            #         x = torch.cat((self.cls_token.expand(x.shape[0], -1, -1), x), dim=1)
+            #         x = self.pos_drop(x + self.pos_embed)
+            #         if self.grad_checkpointing and not torch.jit.is_scripting():
+            #             x = checkpoint_seq(self.blocks, x)
+            #         else:
+            #             if return_attention:
+            #                 for i, blk in enumerate(self.blocks):
+            #                     if i < len(self.blocks) - 1:
+            #                         x = blk(x)
+            #                     else:
+            #                         x, attn = blk(x, return_attention=return_attention)
+            #             else:
+            #                 x = self.blocks(x)
 
+            #         x = self.norm(x)
+                    
+            #         if return_attention:
+            #             return x, attn
+            #         else:
+            #             return x
+                        
             self.vit.forward_features = types.MethodType(forward_features, self.vit)
 
         if normalize_visual_inputs:
@@ -220,7 +306,8 @@ class VisualOdometryTransformerActEmbed(nn.Module):
             nn.Linear(hidden_size, 100), nn.Sigmoid()
         )
 
-        self.add_viz_interface()
+        if not self.observation_strip_sample:
+            self.add_viz_interface()
 
         # # as done by the authors
         # # maybe because R is othorgonal ?
@@ -229,8 +316,8 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
     def add_viz_interface(self):
         
-        if self.pretrain_backbone == 'mmae':
-            def forward(self, x):
+        if self.pretrain_backbone == 'mmae': # and self.observation_strip_sample:
+            def forward(self, x, mask=None):
                 B, N, C = x.shape
                 qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
                 q, k, v = qkv.unbind(0)   # make torchscript happy (cannot use tensor as tuple)
@@ -239,11 +326,34 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 attn = attn.softmax(dim=-1)
                 attn = self.attn_drop(attn)
 
+                if mask is not None:
+                    if mask.ndim == 2:
+                        mask = rearrange(mask, "b n -> b 1 1 n")
+                    else:
+                        mask = rearrange(mask, "b n m -> b 1 n m")
+                    attn = attn.masked_fill(mask, -torch.finfo(attn.dtype).max)
+
                 x = (attn @ v).transpose(1, 2).reshape(B, N, C)
                 x = self.proj(x)
                 x = self.proj_drop(x)
                 return x, attn
             self.vit.encoder[-1].attn.forward = types.MethodType(forward, self.vit.encoder[-1].attn)
+
+        # elif self.pretrain_backbone == 'mmae':
+        #     def forward(self, x):
+        #         B, N, C = x.shape
+        #         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
+        #         q, k, v = qkv.unbind(0)   # make torchscript happy (cannot use tensor as tuple)
+
+        #         attn = (q @ k.transpose(-2, -1)) * self.scale
+        #         attn = attn.softmax(dim=-1)
+        #         attn = self.attn_drop(attn)
+
+        #         x = (attn @ v).transpose(1, 2).reshape(B, N, C)
+        #         x = self.proj(x)
+        #         x = self.proj_drop(x)
+        #         return x, attn
+        #     self.vit.encoder[-1].attn.forward = types.MethodType(forward, self.vit.encoder[-1].attn)
         else:
             def forward(self, x):
                 B, N, C = x.shape
@@ -260,9 +370,9 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 return x, attn
             self.vit.blocks[-1].attn.forward = types.MethodType(forward, self.vit.blocks[-1].attn)
         
-        if self.pretrain_backbone == 'mmae':
-            def forward(self, x, return_attention=False):
-                y, attn = self.attn(self.norm1(x))
+        if self.pretrain_backbone == 'mmae':# and self.observation_strip_sample:
+            def forward(self, x, return_attention=False, mask=None):
+                y, attn = self.attn(self.norm1(x), mask=None)
                 x = x + self.drop_path(y)
                 x = x + self.drop_path(self.mlp(self.norm2(x)))
                 if return_attention:
@@ -270,6 +380,17 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 else:
                     return x
             self.vit.encoder[-1].forward = types.MethodType(forward, self.vit.encoder[-1])
+            
+        # elif self.pretrain_backbone == 'mmae':
+        #     def forward(self, x, return_attention=False):
+        #         y, attn = self.attn(self.norm1(x))
+        #         x = x + self.drop_path(y)
+        #         x = x + self.drop_path(self.mlp(self.norm2(x)))
+        #         if return_attention:
+        #             return x, attn
+        #         else:
+        #             return x
+        #     self.vit.encoder[-1].forward = types.MethodType(forward, self.vit.encoder[-1])
         else:
             def forward(self, x, return_attention=False):
                 y, attn = self.attn(self.norm1(x))
@@ -344,7 +465,7 @@ class VisualOdometryTransformerActEmbed(nn.Module):
 
         rgb, depth = self.preprocess(observation_pairs)
         
-        if self.pretrain_backbone == 'mmae': # and  "rgb" in observation_pairs.keys() and "depth" in observation_pairs.keys():
+        if self.pretrain_backbone == 'mmae':
             
             if "rgb" in observation_pairs.keys() and "depth" in observation_pairs.keys():
                 input_dict = {'rgb': rgb, 'depth': depth}
@@ -354,24 +475,60 @@ class VisualOdometryTransformerActEmbed(nn.Module):
                 input_dict = {'depth': depth}
 
             # evaluation: strip away input
-            for strip in self.observation_strip:
-                if bool(torch.bernoulli(torch.tensor(self.observation_strip_proba))):
-                    del input_dict[strip]
+            if self.observation_strip_type=="val":
+                
+                if "act" in self.observation_strip:
+                    self.cls_action = False
+                    self.observation_strip.remove("act")
+
+                for strip in self.observation_strip:
+                    if bool(torch.bernoulli(torch.tensor(self.observation_strip_proba))):
+                        del input_dict[strip]
+            
+            # training: strip RGB or Depth or None for this batch
+            elif self.observation_strip_type=="train":
+                drop_idx = torch.multinomial(torch.tensor(self.observation_strip_proba), 1)
+                if drop_idx == 0 or drop_idx == 1:
+                    del input_dict[self.observation_strip[drop_idx]]
+                self.abs_strip_ratio[drop_idx] += 1
 
             if return_attention and self.cls_action:
-                features, attn = self.vit.forward(input_dict, actions, self.EMBED_DIM, return_attention=return_attention)
+                features, attn = self.vit.forward(input_dict, actions, self.EMBED_DIM, return_attention=return_attention, mask_modalities=self.observation_strip_sample)
                 features = features[:,-1]
 
             elif return_attention:
-                features, attn = self.vit.forward(input_dict, return_attention=return_attention)
+                features, attn = self.vit.forward(input_dict, return_attention=return_attention, mask_modalities=self.observation_strip_sample)
                 features = features[:,-1]
 
-            if self.cls_action:
-                features = self.vit.forward(input_dict, actions, self.EMBED_DIM)[:,-1]
-            else:
-                features = self.vit.forward(input_dict)[:,-1]
+            # if self.observation_smart and self.cls_action:
+            #     print(input_dict["rgb"].shape)
+                
+            #     smart_dict = {
+            #         "rgb": None,
+            #         "depth": None
+            #     }
+            #     for i, act in enumerate(actions):
+                    
+            #         if act.item() == 0:
+            #             input_dict["rgb"][i][3,40:120,:]
+            #         elif act.item() == 1:
+            #             input_dict["rgb"][i][3,40:120,:]
 
-        else:
+            #         if smart_dict["rgb"]:
+            #             smart_dict["rgb"] = smart_rgb
+            #             smart_dict["depth"] = smart_depth
+            #         else:
+            #             smart_dict["rgb"] = torch.cat((smart_dict["rgb"], smart_rgb),dim=0)
+            #             smart_dict["depth"] = torch.cat((smart_dict["depth"], smart_depth),dim=0)
+
+            #     input_dict = smart_dict
+
+            if self.cls_action:
+                features = self.vit.forward(input_dict, actions, self.EMBED_DIM, mask_modalities=self.observation_strip_sample)[:,-1]
+            else:
+                features = self.vit.forward(input_dict, mask_modalities=self.observation_strip_sample)[:,-1]
+
+        else: # for RGB pre-trained models
 
             # blow up depth -> b,h,w,3
             if "depth" in observation_pairs.keys():

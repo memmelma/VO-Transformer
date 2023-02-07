@@ -656,6 +656,9 @@ class PPOTrainer(BaseRLTrainerWithVO):
         rgb_frames = [
             [] for _ in range(self.config.NUM_PROCESSES)
         ]  # type: List[List[np.ndarray]]
+        all_observations = [
+            [[] for _ in range(self.config.EVAL.TEST_EPISODE_COUNT)] for _ in range(self.config.NUM_PROCESSES)
+        ]
         if len(self.config.VIDEO_OPTION) > 0:
             os.makedirs(self.config.VIDEO_DIR, exist_ok=True)
 
@@ -1015,6 +1018,7 @@ class PPOTrainer(BaseRLTrainerWithVO):
                             tb_writer=writer,
                         )
                         rgb_frames[i] = []
+                        all_observations[i] = []
                 else:
                     # episode continues
                     if int(infos[i]["collisions"]["is_collision"]) == 1:
@@ -1034,7 +1038,74 @@ class PPOTrainer(BaseRLTrainerWithVO):
 
                     if len(self.config.VIDEO_OPTION) > 0:
                         frame = observations_to_image(observations[i], infos[i])
+
+                        all_observations[i].append(observations[i])
+                        for k in self.vo_model:
+                            self.vo_model[k].eval()
+                        # print(frame.shape) -> we can just concat
+                        # edge cases, attention map not defined for first frame
+                        n_obs = len(all_observations[i])
+                        if n_obs > 1 and (False if not hasattr(self.config, "VO.REGRESS.MODEL.observation_strip_type") else self.config.VO.REGRESS.MODEL.observation_strip_type != "val"):
+                            observation_pairs = {
+                                "rgb": torch.cat((torch.tensor(all_observations[i][n_obs-2]["rgb"]), torch.tensor(all_observations[i][n_obs-1]["rgb"])), dim=-1).unsqueeze(0).to(self.device),
+                                "depth": torch.cat((torch.tensor(all_observations[i][n_obs-2]['depth']), torch.tensor(all_observations[i][n_obs-1]['depth'])), dim=-1).unsqueeze(0).to(self.device)
+                                }
+                            for k in self.vo_model:
+                                _, attn = self.vo_model[k](observation_pairs, actions[i], return_depth=False, return_attention=True)
+                            nh = 12
+                            patch_size = 16
+                            obs_size = (80,160)
+                            # attn = attn.squeeze()[:, -1, :100].reshape(nh, -1)
+                            attn_0 = attn.squeeze()[:, -1, :50].reshape(nh, -1)
+                            # obs_size = self.vo_model[k].obs_size
+                            # obs_size = (80,320)
+                            attn_0 = attn_0.reshape(nh, obs_size[0]//patch_size, obs_size[1]//patch_size)
+                            # attn = torch.nn.functional.interpolate(attn.unsqueeze(0), size=(192, 384*2), mode="nearest")[0]
+                            attn_0 = torch.nn.functional.interpolate(attn_0.unsqueeze(0), size=(observations[i]["rgb"].shape[0], observations[i]["rgb"].shape[1]), mode="nearest")[0]
+                            
+                            from matplotlib import cm
+                            attn_0 = attn_0.detach().cpu().numpy()
+                            attn_agg_max = np.max(attn_0, axis=0)
+                            attn_agg_mean = np.mean(attn_0, axis=0)
+                            attn_agg_min = np.min(attn_0, axis=0)
+
+                            attn_agg = attn_agg_max / attn_agg_max.max()
+                            attn_agg_inferno = cm.inferno(attn_agg)
+                            attn_agg_inferno = np.uint8(attn_agg_inferno[:,:,:-1] * 255)
+
+                            attn_frame_0 = attn_agg_inferno
+
+                            # attn = attn.squeeze()[:, -1, 50:100].reshape(nh, -1)
+                            attn_1 = attn.squeeze()[:, -1, 100:150].reshape(nh, -1)
+                            # obs_size = self.vo_model[k].obs_size
+                            # obs_size = (80,320)
+                            attn_1 = attn_1.reshape(nh, obs_size[0]//patch_size, obs_size[1]//patch_size)
+                            # attn = torch.nn.functional.interpolate(attn.unsqueeze(0), size=(192, 384*2), mode="nearest")[0]
+                            attn_1 = torch.nn.functional.interpolate(attn_1.unsqueeze(0), size=(observations[i]["rgb"].shape[0], observations[i]["rgb"].shape[1]), mode="nearest")[0]
+                            
+                            from matplotlib import cm
+                            attn_1 = attn_1.detach().cpu().numpy()
+                            attn_agg_max = np.max(attn_1, axis=0)
+                            attn_agg_mean = np.mean(attn_1, axis=0)
+                            attn_agg_min = np.min(attn_1, axis=0)
+
+                            attn_agg = attn_agg_max / attn_agg_max.max()
+                            attn_agg_inferno = cm.inferno(attn_agg)
+                            attn_agg_inferno = np.uint8(attn_agg_inferno[:,:,:-1] * 255)
+
+                            attn_frame_1 = attn_agg_inferno
+                            attn_frame_01 = np.concatenate((attn_frame_0, attn_frame_1), axis=1)
+                            attn_frame_full = np.concatenate((attn_frame_01, np.zeros((observations[i]["rgb"].shape[0],frame.shape[1]-(observations[i]["rgb"].shape[1])*2,3))), axis=1)
+                            # print(frame.shape, attn_frame_0.shape, attn_frame_1.shape, attn_frame_01.shape, attn_frame_full.shape)
+                            frame = np.concatenate((frame, attn_frame_full), axis=0)
+                        else:
+                            # frame = np.concatenate((np.zeros((192,384,3)), frame), axis=1)
+                            frame = np.concatenate((frame, np.zeros((observations[i]["rgb"].shape[0],frame.shape[1],3))), axis=0)
+                            # frame = np.concatenate((np.zeros((192,384*2,3)), frame), axis=1)
+                        # print(frame.shape)
                         rgb_frames[i].append(frame)
+                        # exit()
+                        # all_observations[i].append(frame)
 
             (
                 self.envs,

@@ -12,6 +12,8 @@ import numpy as np
 import habitat
 from habitat.tasks.nav.shortest_path_follower import ShortestPathFollower
 
+import matplotlib.pyplot as plt
+
 from pointnav_vo.utils.geometry_utils import (
     quaternion_to_array,
     modified_agent_state_target2ref,
@@ -415,7 +417,9 @@ def generate_one_dataset(
             cur_metrics = env.get_metrics()
 
             if best_action in valid_act and np.random.binomial(1, rnd_p) == 1:
-
+                
+                print("best_action", best_action)
+                
                 action_cnt[best_action] += 1
 
                 cnt += 1
@@ -457,6 +461,10 @@ def generate_one_dataset(
                 prev_depth = prev_obs["depth"]
                 cur_rgb = cur_obs["rgb"]
                 cur_depth = cur_obs["depth"]
+
+                plt.imsave(f"rebuttal/cur_depth_5_{cnt}.png", np.repeat(cur_depth, 3, -1))
+                plt.imsave(f"rebuttal/prev_depth_5_{cnt}.png", np.repeat(prev_depth, 3, -1))
+
                 if obs_transformer is not None:
                     raw_obs = np.concatenate(
                         (prev_rgb, prev_depth, cur_rgb, cur_depth,), axis=2
@@ -485,6 +493,8 @@ def generate_one_dataset(
                 prev_global_rotations.append(
                     quaternion_to_array(prev_agent_state.rotation)
                 )
+                print("prev_agent_state.position", prev_agent_state.position)
+                print("prev_agent_state.rotation", prev_agent_state.rotation)
 
                 # print(cur_chunk_size, chunk_data_cnt, tmp_idx,
                 #       prev_rgbs.dtype, prev_depths.dtype, prev_point_goal_vecs.dtype, prev_episodic_gpses.dtype,
@@ -502,10 +512,13 @@ def generate_one_dataset(
                 cur_global_rotations.append(
                     quaternion_to_array(cur_agent_state.rotation)
                 )
+                print("cur_agent_state.position", cur_agent_state.position)
+                print("cur_agent_state.rotation", cur_agent_state.rotation)
 
                 delta_state = modified_agent_state_target2ref(
                     prev_agent_state, cur_agent_state
                 )
+                print("delta_state", delta_state)
                 delta_rotations.append(delta_state[0])
                 delta_positions.append(delta_state[1])
 

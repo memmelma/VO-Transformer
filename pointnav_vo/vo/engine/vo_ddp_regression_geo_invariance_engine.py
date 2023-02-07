@@ -1099,6 +1099,13 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
             self.vo_model[act] = vo_model_cls(
                 observation_space=self._observation_space,
                 observation_size=obs_size,
+                observation_strip=self.config.VO.MODEL.observation_strip,
+                observation_strip_proba=self.config.VO.MODEL.observation_strip_proba,
+                observation_strip_type=self.config.VO.MODEL.observation_strip_type,
+                observation_strip_sample=self.config.VO.MODEL.observation_strip_sample if hasattr(self.config.VO.MODEL, "observation_strip_sample") else False,
+                time_pos_emb=self.config.VO.MODEL.time_pos_emb if hasattr(self.config.VO.MODEL, "time_pos_emb") else False,
+                # observation_smart= self.config.VO.MODEL.observation_smart if hasattr(self.config.VO.MODEL, "observation_smart") else False,
+                obs_size_single=self.config.VO.MODEL.obs_size_single if hasattr(self.config.VO.MODEL, "obs_size_single") else (320//4, 160),
                 hidden_size=self.config.VO.MODEL.hidden_size,
                 backbone=self.config.VO.MODEL.visual_backbone,
                 normalize_visual_inputs=True,  # "rgb" in self._observation_space,
@@ -1367,10 +1374,10 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
                     total_size == target_size
                 ), f"The number of data as {total_size} does not match dataset length {target_size}."
 
-                if "transformer" in self.config.VO.MODEL.name and not logged_attn and self.config.VO.MODEL.visual_type:
-                    features, batch_pairs["self_attention"] = self.vo_model[-1](batch_pairs, batch_pairs["actions"], return_attention=True)
-                    self._attn_log_func(writer, epoch, batch_pairs)
-                    logged_attn = True
+                # if "transformer" in self.config.VO.MODEL.name and not logged_attn and self.config.VO.MODEL.visual_type:
+                #     features, batch_pairs["self_attention"] = self.vo_model[-1](batch_pairs, batch_pairs["actions"], return_attention=True)
+                #     self._attn_log_func(writer, epoch, batch_pairs)
+                #     logged_attn = True
 
                 # NOTE
                 del eval_iter
@@ -1761,6 +1768,8 @@ class VODDPRegressionGeometricInvarianceEngine(VOBaseEngine):
         self, writer, global_step, batch_pairs,
     ):
 
+        if self.config.VO.MODEL.observation_strip_sample if hasattr(self.config.VO.MODEL, "observation_strip_sample") else False:
+            return
         rgb_check = "rgb" in self._observation_space
         # dont visualize depth when aux depth loss is used
         depth_check = "depth" in self._observation_space and not self.config.VO.TRAIN.depth_aux_loss

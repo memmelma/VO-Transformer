@@ -165,18 +165,12 @@ class Attention(nn.Module):
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
-    def forward(self, x, mask=None):
+    def forward(self, x):
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv.unbind(0)   # make torchscript happy (cannot use tensor as tuple)
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
-        if mask is not None:
-            if mask.ndim == 2:
-                mask = rearrange(mask, "b n -> b 1 1 n")
-            else:
-                mask = rearrange(mask, "b n m -> b 1 n m")
-            attn = attn.masked_fill(mask.to(x.device).bool(), -torch.finfo(attn.dtype).max)
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
 
@@ -230,8 +224,8 @@ class Block(nn.Module):
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=act_layer, drop=drop)
 
-    def forward(self, x, mask=None):
-        x = x + self.drop_path(self.attn(self.norm1(x), mask=mask))
+    def forward(self, x):
+        x = x + self.drop_path(self.attn(self.norm1(x)))
         x = x + self.drop_path(self.mlp(self.norm2(x)))
         return x
 

@@ -6,7 +6,7 @@ import torch
 
 
 class WandbWriter:
-    def __init__(self, config: Any, rank=0, project='final', *args: Any, **kwargs: Any):
+    def __init__(self, config: Any, rank=0, project='memmelma_cvpr_rebuttal', *args: Any, **kwargs: Any):
         r"""A Wrapper for wandb.
 
         Args:
@@ -22,8 +22,13 @@ class WandbWriter:
                 project = config.WANDB_PROJECT
                 
             if "WANDB_RUN_ID" in config.keys() and config.RESUME_TRAIN:
-                self.run = wandb.init(project=project, entity="memmelma", id=config.WANDB_RUN_ID, resume="must",
+                try:
+                    self.run = wandb.init(project=project, entity="memmelma", id=config.WANDB_RUN_ID, resume="must",
                                         mode="disabled" if config.TASK_CONFIG.DATASET.SPLIT != 'train' else None)
+                except wandb.errors.UsageError:
+                    self.run = wandb.init(project=project, entity="memmelma", config=vars(),
+                                        mode="disabled" if config.TASK_CONFIG.DATASET.SPLIT != 'train' else None, reinit=True)
+                    print("WARNING: Couldn't find wandb run. Creating new one.")
             else:
                 self.run = wandb.init(project=project, entity="memmelma", config=vars(),
                                         mode="disabled" if config.TASK_CONFIG.DATASET.SPLIT != 'train' else None, reinit=True)
