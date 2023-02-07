@@ -10,13 +10,13 @@ CHECKPOINT_FOLDER: "{{LOG_DIR}}/checkpoints"
 TENSORBOARD_DIR: "{{LOG_DIR}}/tb"
 VIDEO_OPTION: []
 VIDEO_DIR: "{{LOG_DIR}}/videos"
-LOG_INTERVAL: 1
+LOG_INTERVAL: 5
 
 N_GPUS: -1 # -1 equals all available GPUs
-DEBUG: True
+DEBUG: False
 
-RESUME_TRAIN: False
-RESUME_STATE_FILE: "auto"   # path to the checkpoint you want to resume training from
+RESUME_TRAIN: True
+RESUME_STATE_FILE: "auto" # path to the checkpoint you want to resume training from
 RESUME_STATE_PATH: ""
 
 # evaluation settings
@@ -39,8 +39,8 @@ VO:
     weight_decay: 0.0 # we do not use weight decay in our experiments
     scheduler: "none" # choices: 'none', 'cosine'
     eps: 1.0e-8
-    batch_size: 384 # [ A100: small rgbANDdepth 320 / small rgbORdepth 768 / base rgbANDdepth 160 ]
-    epochs: 150
+    batch_size: 128 # [ A100: small rgbANDdepth 320 / small rgbORdepth 768 / base rgbANDdepth 160 ]
+    epochs: 100
     loss_weight_fixed: True
     loss_weight_multiplier: {"dx": 1.0, "dz": 1.0, "dyaw": 1.0}
     log_grad: False
@@ -74,17 +74,22 @@ VO:
     #  vo_transformer_act_embed]
     name: "vo_transformer_act_embed"
     # choices: 'small', 'base', 'large', 'hybrid'
-    visual_backbone: "base" 
+    visual_backbone: "small" 
     
     train_backbone: True # True: also train the ViT encoder, False: freeze
     # choices: 'in21k', 'dino' (in1k), 'omnidata', 'None'
-    pretrain_backbone: 'dino'
-    cls_action: True # True
+    pretrain_backbone: 'mmae'
+    cls_action: False
     # choices: ["rgb", "depth", "discretized_depth", "top_down_view"]
-    visual_type: ["depth"]
+    visual_type: ["rgb", "depth"]
+
+    observation_strip: []
+    # probability of stripping RGB, Depth, or None during training
+    observation_strip_proba: [0., 0., 0.]
+    observation_strip_type: "none"
 
     hidden_size: 512
-    custom_model_path: 'pretrained'
+    custom_model_path: ''
     # choices: ['none', 'hard']
     discretize_depth: "none"
     # discretized_depth_channels: 10
@@ -109,8 +114,8 @@ VO:
     invariance_types: ["inverse_joint_train"] # ["inverse_data_augment_only"]  # choices: ["inverse_data_augment_only", "inverse_joint_train"]
 
   DATASET:
-    TRAIN_WITH_NOISE: /scratch/memmel/dataset/train_250000.h5
-    EVAL_WITH_NOISE: /scratch/memmel/dataset/val_25000.h5
+    TRAIN_WITH_NOISE: /home/memmel/train_250000.h5
+    EVAL_WITH_NOISE: /home/memmel/val_25000.h5
 
     # use only 1 / PARTIAL_DATA_N_SPLITS data to train
     # so PARTIAL_DATA_N_SPLITS = 1 means we use all data

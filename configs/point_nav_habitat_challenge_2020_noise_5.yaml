@@ -36,6 +36,9 @@ SIMULATOR:
     MAX_DEPTH: 10.0
     POSITION: [0, 0.88, 0]
     NOISE_MODEL: "RedwoodDepthNoiseModel"
+    NOISE_MODEL_KWARGS:
+      noise_multiplier: 5
+    NOISE_MULTIPLIER: 5
 
   ACTION_SPACE_CONFIG: 'pyrobotnoisy'
   NOISE_MODEL:
