@@ -1,10 +1,5 @@
 #!/bin/bash
-
-### ENVIRONMENT ###
-
-echo "Set env vars..."
 export POINTNAV_VO_ROOT=$PWD && \
-# export PYTHONPATH=${POINTNAV_VO_ROOT}:$PYTHONPATH && \
 export NUMBA_NUM_THREADS=1 && \
 export NUMBA_THREADING_LAYER=workqueue
 export HDF5_USE_FILE_LOCKING=FALSE

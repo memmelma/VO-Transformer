@@ -14,7 +14,7 @@ class WandbWriter:
             **kwargs: Additional keyword args for SummaryWriter
         """
         
-        self.use_wandb = not config.DEBUG and rank == 0
+        self.use_wandb = not config.DEBUG and rank == 0 and project != None
         if self.use_wandb:
             os.system("wandb login --relogin $WANDB_API_KEY")
             

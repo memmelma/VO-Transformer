@@ -1,5 +1,4 @@
 #!/bin/bash
-# setup env variables
 export POINTNAV_VO_ROOT=$PWD && \
 export PYTHONPATH=${POINTNAV_VO_ROOT}:$PYTHONPATH && \
 export NUMBA_NUM_THREADS=1 && \

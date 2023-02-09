@@ -1,12 +1,15 @@
-# Base image
 FROM nvidia/cudagl:11.0-base-ubuntu18.04
-
 LABEL maintainer "Memmel Marius <marius.memmel@epfl.ch>"
 
 USER root
 
+# fix https://github.com/NVIDIA/nvidia-docker/issues/1632
+RUN rm /etc/apt/sources.list.d/cuda.list
+RUN rm /etc/apt/sources.list.d/nvidia-ml.list
+
 # Setup basic packages
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     build-essential \
     git \
     curl \
@@ -26,36 +29,52 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     zip \
     sudo \
     net-tools \
+    cmake \
+    vim \
+    locales \
+    wget \
+    git \
+    nano \
+    screen \
+    gcc \
+    python3-dev \
+    bzip2 \
+    libx11-6 \
+    libssl-dev \
+    libffi-dev \
+    parallel \
+    tmux \
+    g++ \
     unzip &&\
-    rm -rf /var/lib/apt/lists/*
+    sudo rm -rf /var/lib/apt/lists/*
 
-RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && locale-gen
 
-RUN useradd -ms /bin/bash masteruser
+ENV user masteruser
+RUN useradd -m -d /home/${user} ${user} && \
+    chown -R ${user} /home/${user} && \
+    adduser ${user} sudo && \
+    echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+ENV HOME=/home/$user
 USER masteruser
 WORKDIR /home/masteruser
 
 # Create conda environment
-RUN curl -Lso ~/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-py39_4.10.3-Linux-x86_64.sh \
+RUN curl -Lso ~/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-py37_4.11.0-Linux-x86_64.sh \
  && chmod +x ~/miniconda.sh \
  && ~/miniconda.sh -b -p ~/miniconda \
  && rm ~/miniconda.sh
 ENV PATH=$HOME/miniconda/bin:$PATH
 ENV CONDA_AUTO_UPDATE_CONDA=false
 
-RUN git clone https://github.com/Xiaoming-Zhao/PointNav-VO.git \
- && cd PointNav-VO \
- && $HOME/miniconda/bin/conda env create --file environment.yml \
+RUN $HOME/miniconda/bin/conda create -y --name py37 python=3.7 \
  && $HOME/miniconda/bin/conda clean -ya
-ENV CONDA_DEFAULT_ENV=pointnav-vo
+ENV CONDA_DEFAULT_ENV=py37
 ENV CONDA_PREFIX=$HOME/miniconda/envs/$CONDA_DEFAULT_ENV
 ENV PATH=$CONDA_PREFIX/bin:$PATH
 RUN $HOME/miniconda/bin/conda clean -ya
 
-RUN git clone https://github.com/memmelma/visual-prior.git \
-    && cd visual-prior \
-    && pip install -e .
-    
+# Install habitat
 RUN git clone https://github.com/facebookresearch/habitat-sim.git \
     && cd habitat-sim \
     && git checkout 020041d75eaf3c70378a9ed0774b5c67b9d3ce99 \
@@ -69,18 +88,25 @@ RUN git clone https://github.com/facebookresearch/habitat-lab.git \
     && pip install -e . \
     && cd ..
 
-RUN git clone --recurse-submodules https://github.com/devendrachaplot/Neural-SLAM \
-    && cd Neural-SLAM \
-    && pip install -r requirements.txt \
-    && cd ..
-
-RUN git clone https://github.com/rwightman/pytorch-image-models/tree/d07d0151738417dc754e6620656e9e9a9621aae8 \
+# Install timm
+RUN git clone https://github.com/rwightman/pytorch-image-models.git \
     && cd pytorch-image-models \
     && pip install -e .
 
+# Install pytorch
 RUN conda install pytorch==1.7.0 torchvision==0.8.0 torchaudio==0.7.0 cudatoolkit=11.0 -c pytorch
 
+# Install other stuff
 RUN pip install future \
+    numba \
+    numpy \
+    tqdm \
+    tbb \
+    joblib \
+    h5py \
+    opencv-python \
+    lz4 \
+    yacs \
     wandb \
     tensorboard==1.15 \
     ifcfg \
@@ -90,7 +116,7 @@ RUN pip install future \
     imageio \
     einops
 
-# # Silence habitat-sim logs
+# Silence habitat-sim logs
 ENV GLOG_minloglevel=2
 ENV MAGNUM_LOG="quiet"
 ENV HOROVOD_GLOO_IFACE=em2
