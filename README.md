@@ -1,8 +1,12 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-<h1 align="center">Multi-modal Vision Transformers<br/>For Data-Efficient Visual Odometry In Embodied Indoor Navigation</h1>
-<p align="center"><b>Supplementary code repository to the <a href='./thesis.pdf'>Masters thesis</a> by <a href='https://memmelma.github.io'>Marius Memmel</a></b></p>
-<p align="center"><b>Short <a href='https://embodied-ai.org/'>paper</a> presented at the <a href='https://embodied-ai.org/'>Embodied AI Workshop</a></b> at CVPR 2022</p>
+<h1 align="center">Modality-invariant Visual Odometry for Embodied Vision</h1>
+
+<p align="center"> <a href='https://memmelma.github.io'>Marius Memmel</a>, <a href='https://roman-bachmann.github.io'>Roman Bachmann</a>, <a href='https://vilab.epfl.ch/zamir'>Amir Zamir</a>
+
+</p>
+
+<p align="center"><a href='https://openaccess.thecvf.com/content/CVPR2023/html/Memmel_Modality-Invariant_Visual_Odometry_for_Embodied_Vision_CVPR_2023_paper.html'>CVPR 2023</a></p>
 
 <p align="center"></p>
 
