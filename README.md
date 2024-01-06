@@ -6,7 +6,14 @@
 
 </p>
 
-<p align="center"><a href='https://openaccess.thecvf.com/content/CVPR2023/html/Memmel_Modality-Invariant_Visual_Odometry_for_Embodied_Vision_CVPR_2023_paper.html'>CVPR 2023</a></p>
+<p align="center">CVPR 2023</p>
+
+<p align="center">
+  <a href='https://openaccess.thecvf.com/content/CVPR2023/html/Memmel_Modality-Invariant_Visual_Odometry_for_Embodied_Vision_CVPR_2023_paper.html'>paper</a> |
+  <a href='https://arxiv.org/abs/2305.00348'>arxiv</a> |
+  <a href='https://memmelma.github.io/vot/'>website</a>
+
+</p>
 
 <p align="center"></p>
 
